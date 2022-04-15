@@ -194,11 +194,27 @@ execInstruction opcode =
     0x28 -> jrZr8
     0x29 -> addHLHL
     0x2A -> ldAHLplus
+    0x2B -> decHL
+    0x2C -> incL
+    0x2D -> decL
+    0x2E -> ldLd8
+    0x2F -> cpl
+    0x30 -> jrNCr8
     0x31 -> ldSPd16
     0x32 -> ldHLminusA
     0x33 -> incSP
     0x34 -> incHL_
+    0x35 -> decHL_
     0x36 -> ldHLd8
+    0x37 -> scf
+    0x38 -> jrCr8
+    0x39 -> addHLSP
+    0x3A -> ldAHLminus
+    0x3B -> decSP
+    0x3C -> incA
+    0x3D -> decA
+    0x3E -> ldAd8
+    0x3F -> ccf
     0x40 -> ldBB
     0x41 -> ldBC
     0x42 -> ldBD
@@ -263,6 +279,46 @@ execInstruction opcode =
     0x7D -> ldAL
     0x7E -> ldAHL
     0x7F -> ldAA
+    0x80 -> addAB
+    0x81 -> addAC
+    0x82 -> addAD
+    0x83 -> addAE
+    0x84 -> addAH
+    0x85 -> addAL
+    0x86 -> addAHL
+    0x87 -> addAA
+    0x88 -> adcAB
+    0x89 -> adcAC
+    0x8A -> adcAD
+    0x8B -> adcAE
+    0x8C -> adcAH
+    0x8D -> adcAL
+    0x8E -> adcAHL
+    0x8F -> adcAA
+    0x90 -> subB
+    0x91 -> subC
+    0x92 -> subD
+    0x93 -> subE
+    0x94 -> subH
+    0x95 -> subL
+    0x96 -> subHL
+    0x97 -> subA
+    0x98 -> sbcB
+    0x99 -> sbcC
+    0x9A -> sbcD
+    0x9B -> sbcE
+    0x9C -> sbcH
+    0x9D -> sbcL
+    0x9E -> sbcHL
+    0x9F -> sbcA
+    0xA0 -> andB
+    0xA1 -> andC
+    0xA2 -> andD
+    0xA3 -> andE
+    0xA4 -> andH
+    0xA5 -> andL
+    0xA6 -> andHL
+    0xA7 -> andA
     _ -> undefined
 
 nop :: Gameboy -> Gameboy
@@ -498,6 +554,12 @@ ldAHLplus gb =
     & gbCPU . cpuRegisterHL +~ 1
     & gbCPU . cpuPC +~ 1
 
+ldAHLminus :: Gameboy -> Gameboy
+ldAHLminus gb =
+  gb & gbCPU . cpuRegisterA .~ ramLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+    & gbCPU . cpuRegisterHL -~ 1
+    & gbCPU . cpuPC +~ 1
+
 ldd8 :: Lens' CPU Word8 -> Gameboy -> Gameboy
 ldd8 reg gb =
   gb & gbCPU . reg .~ ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM)
@@ -517,6 +579,12 @@ ldEd8 = ldd8 cpuRegisterE
 
 ldHd8 :: Gameboy -> Gameboy
 ldHd8 = ldd8 cpuRegisterH
+
+ldLd8 :: Gameboy -> Gameboy
+ldLd8 = ldd8 cpuRegisterL
+
+ldAd8 :: Gameboy -> Gameboy
+ldAd8 = ldd8 cpuRegisterA
 
 ldHLd8 :: Gameboy -> Gameboy
 ldHLd8 gb =
@@ -570,6 +638,12 @@ decBC gb = gb & gbCPU . cpuRegisterBC -~ 1 & gbCPU . cpuPC +~ 1
 
 decDE :: Gameboy -> Gameboy
 decDE gb = gb & gbCPU . cpuRegisterDE -~ 1 & gbCPU . cpuPC +~ 1
+
+decHL :: Gameboy -> Gameboy
+decHL gb = gb & gbCPU . cpuRegisterHL -~ 1 & gbCPU . cpuPC +~ 1
+
+decSP :: Gameboy -> Gameboy
+decSP gb = gb & gbCPU . cpuSP -~ 1 & gbCPU . cpuPC +~ 1
 
 rlA :: Gameboy -> Gameboy
 rlA gb =
@@ -644,6 +718,12 @@ incE = inc cpuRegisterE
 incH :: Gameboy -> Gameboy
 incH = inc cpuRegisterH
 
+incL :: Gameboy -> Gameboy
+incL = inc cpuRegisterL
+
+incA :: Gameboy -> Gameboy
+incA = inc cpuRegisterA
+
 incHL_ :: Gameboy -> Gameboy
 incHL_ gb =
   gb & writeToRam (gb ^. address) (val + 1)
@@ -678,6 +758,23 @@ decE = dec cpuRegisterE
 decH :: Gameboy -> Gameboy
 decH = dec cpuRegisterH
 
+decL :: Gameboy -> Gameboy
+decL = dec cpuRegisterL
+
+decA :: Gameboy -> Gameboy
+decA = dec cpuRegisterA
+
+decHL_ :: Gameboy -> Gameboy
+decHL_ gb =
+  gb & writeToRam (gb ^. address) (val - 1)
+    & gbCPU . cpuFlagH .~ (0x0F .&. val == 0x00)
+    & gbCPU . cpuFlagZ .~ (val - 1 == 0x00)
+    & gbCPU . cpuFlagN .~ True
+    & gbCPU . cpuPC +~ 1
+  where
+    val = ramLookup (gb ^. address) (gb ^. gbRAM)
+    address = gbCPU . cpuRegisterHL
+
 addHL :: Lens' CPU Word16 -> Gameboy -> Gameboy
 addHL reg gb =
   gb & gbCPU . cpuRegisterHL .~ op1 + op2
@@ -697,6 +794,191 @@ addHLDE = addHL cpuRegisterDE
 
 addHLHL :: Gameboy -> Gameboy
 addHLHL = addHL cpuRegisterHL
+
+addHLSP :: Gameboy -> Gameboy
+addHLSP = addHL cpuSP
+
+addA :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
+addA reg gb =
+  gb & gbCPU . cpuRegisterA .~ op1 + op2
+    & gbCPU . cpuFlagZ .~ (op1 + op2 == 0x00)
+    & gbCPU . cpuFlagH .~ (op1 + op2 < op1) -- I suppose H in this context is just C...?
+    & gbCPU . cpuFlagC .~ (op1 + op2 < op1)
+    & gbCPU . cpuFlagN .~ False
+    & gbCPU . cpuPC +~ 1
+  where
+    op1 = gb ^. gbCPU . cpuRegisterA
+    op2 = gb ^. gbCPU . reg
+
+addAB :: Gameboy -> Gameboy
+addAB = addA cpuRegisterB
+
+addAC :: Gameboy -> Gameboy
+addAC = addA cpuRegisterC
+
+addAD :: Gameboy -> Gameboy
+addAD = addA cpuRegisterD
+
+addAE :: Gameboy -> Gameboy
+addAE = addA cpuRegisterE
+
+addAH :: Gameboy -> Gameboy
+addAH = addA cpuRegisterH
+
+addAL :: Gameboy -> Gameboy
+addAL = addA cpuRegisterL
+
+addAHL :: Gameboy -> Gameboy
+addAHL gb = addA (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+
+addAA :: Gameboy -> Gameboy
+addAA = addA cpuRegisterA
+
+adcA :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
+adcA reg gb =
+  gb & gbCPU . cpuRegisterA .~ op1 + op2 + cy
+    & gbCPU . cpuFlagZ .~ (op1 + op2 + cy == 0x00)
+    & gbCPU . cpuFlagH .~ (op1 + op2 < op1 || (op1 + op2 + cy < op1)) -- I suppose H in this context is just C...?
+    & gbCPU . cpuFlagC .~ (op1 + op2 < op1 || (op1 + op2 + cy < op1)) -- FIXME: There must be sth more elegant :/
+    & gbCPU . cpuFlagN .~ False
+    & gbCPU . cpuPC +~ 1
+  where
+    op1 = gb ^. gbCPU . cpuRegisterA
+    op2 = gb ^. gbCPU . reg
+    cy = bool 0 1 $ gb ^. gbCPU . cpuFlagC
+
+adcAB :: Gameboy -> Gameboy
+adcAB = adcA cpuRegisterB
+
+adcAC :: Gameboy -> Gameboy
+adcAC = adcA cpuRegisterC
+
+adcAD :: Gameboy -> Gameboy
+adcAD = adcA cpuRegisterD
+
+adcAE :: Gameboy -> Gameboy
+adcAE = adcA cpuRegisterE
+
+adcAH :: Gameboy -> Gameboy
+adcAH = adcA cpuRegisterH
+
+adcAL :: Gameboy -> Gameboy
+adcAL = adcA cpuRegisterL
+
+adcAHL :: Gameboy -> Gameboy
+adcAHL gb = adcA (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+
+adcAA :: Gameboy -> Gameboy
+adcAA = adcA cpuRegisterA
+
+sub :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
+sub reg gb =
+  gb & gbCPU . cpuRegisterA .~ op1 - op2
+    & gbCPU . cpuFlagZ .~ (op1 - op2 == 0x00)
+    & gbCPU . cpuFlagH .~ (op1 - op2 > op1) -- I suppose H in this context is just C...?
+    & gbCPU . cpuFlagC .~ (op1 - op2 > op1)
+    & gbCPU . cpuFlagN .~ True
+    & gbCPU . cpuPC +~ 1
+  where
+    op1 = gb ^. gbCPU . cpuRegisterA
+    op2 = gb ^. gbCPU . reg
+
+subB :: Gameboy -> Gameboy
+subB = sub cpuRegisterB
+
+subC :: Gameboy -> Gameboy
+subC = sub cpuRegisterC
+
+subD :: Gameboy -> Gameboy
+subD = sub cpuRegisterD
+
+subE :: Gameboy -> Gameboy
+subE = sub cpuRegisterE
+
+subH :: Gameboy -> Gameboy
+subH = sub cpuRegisterH
+
+subL :: Gameboy -> Gameboy
+subL = sub cpuRegisterL
+
+subHL :: Gameboy -> Gameboy
+subHL gb = sub (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+
+subA :: Gameboy -> Gameboy
+subA = sub cpuRegisterA
+
+sbc :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
+sbc reg gb =
+  gb & gbCPU . cpuRegisterA .~ op1 - op2 - cy
+    & gbCPU . cpuFlagZ .~ (op1 - op2 - cy == 0x00)
+    & gbCPU . cpuFlagH .~ (op1 - op2 > op1 || op1 - op2 - cy > op1) -- I suppose H in this context is just C...?
+    & gbCPU . cpuFlagC .~ (op1 - op2 > op1 || op1 - op2 - cy > op1)
+    & gbCPU . cpuFlagN .~ True
+    & gbCPU . cpuPC +~ 1
+  where
+    op1 = gb ^. gbCPU . cpuRegisterA
+    op2 = gb ^. gbCPU . reg
+    cy = bool 0 1 $ gb ^. gbCPU . cpuFlagC
+
+sbcB :: Gameboy -> Gameboy
+sbcB = sbc cpuRegisterB
+
+sbcC :: Gameboy -> Gameboy
+sbcC = sbc cpuRegisterC
+
+sbcD :: Gameboy -> Gameboy
+sbcD = sbc cpuRegisterD
+
+sbcE :: Gameboy -> Gameboy
+sbcE = sbc cpuRegisterE
+
+sbcH :: Gameboy -> Gameboy
+sbcH = sbc cpuRegisterH
+
+sbcL :: Gameboy -> Gameboy
+sbcL = sbc cpuRegisterL
+
+sbcHL :: Gameboy -> Gameboy
+sbcHL gb = sbc (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+
+sbcA :: Gameboy -> Gameboy
+sbcA = sbc cpuRegisterA
+
+aAnd :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
+aAnd reg gb =
+  gb & gbCPU . cpuRegisterA .~ op1 .&. op2
+    & gbCPU . cpuFlagZ .~ (op1 .&. op2 == 0x00)
+    & gbCPU . cpuFlagN .~ False
+    & gbCPU . cpuFlagH .~ True
+    & gbCPU . cpuFlagC .~ False
+  where
+    op1 = gb ^. gbCPU . cpuRegisterA
+    op2 = gb ^. gbCPU . reg
+
+
+andB :: Gameboy -> Gameboy
+andB = aAnd cpuRegisterB
+
+andC :: Gameboy -> Gameboy
+andC = aAnd cpuRegisterC
+
+andD :: Gameboy -> Gameboy
+andD = aAnd cpuRegisterD
+
+andE :: Gameboy -> Gameboy
+andE = aAnd cpuRegisterE
+
+andH :: Gameboy -> Gameboy
+andH = aAnd cpuRegisterH
+
+andL :: Gameboy -> Gameboy
+andL = aAnd cpuRegisterL
+
+andHL :: Gameboy -> Gameboy
+andHL gb = aAnd (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+
+andA :: Gameboy -> Gameboy
+andA = aAnd cpuRegisterA
 
 jrr8 :: Gameboy -> Gameboy
 jrr8 gb =
@@ -720,3 +1002,36 @@ jrNZr8 gb =
   if not (gb ^. gbCPU . cpuFlagZ)
     then jrr8 gb
     else gb & gbCPU . cpuPC +~ 2
+
+jrCr8 :: Gameboy -> Gameboy
+jrCr8 gb =
+  if gb ^. gbCPU . cpuFlagC
+    then jrr8 gb
+    else gb & gbCPU . cpuPC +~ 2
+
+jrNCr8 :: Gameboy -> Gameboy
+jrNCr8 gb =
+  if not (gb ^. gbCPU . cpuFlagC)
+    then jrr8 gb
+    else gb & gbCPU . cpuPC +~ 2
+
+cpl :: Gameboy -> Gameboy
+cpl gb =
+  gb & gbCPU . cpuRegisterA %~ complement
+    & gbCPU . cpuFlagN .~ True
+    & gbCPU . cpuFlagH .~ True
+    & gbCPU . cpuPC +~ 1
+
+scf :: Gameboy -> Gameboy
+scf gb =
+  gb & gbCPU . cpuFlagC .~ True
+    & gbCPU . cpuFlagN .~ False
+    & gbCPU . cpuFlagH .~ False
+    & gbCPU . cpuPC +~ 1
+
+ccf :: Gameboy -> Gameboy
+ccf gb =
+  gb & gbCPU . cpuFlagC %~ not
+    & gbCPU . cpuFlagN .~ False
+    & gbCPU . cpuFlagH .~ False
+    & gbCPU . cpuPC +~ 1
