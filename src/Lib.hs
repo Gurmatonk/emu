@@ -12,6 +12,7 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Text
 import Data.Word
+import Data.Tuple (swap)
 
 data Gameboy = Gameboy
   { _gbCPU :: CPU,
@@ -113,8 +114,17 @@ mkWord16 hi lo = ((fromIntegral hi :: Word16) `shiftL` 8) + fromIntegral lo
 splitWord16 :: Word16 -> (Word8, Word8)
 splitWord16 w = (fromIntegral ((w .&. 0xFF00) `shiftR` 8), fromIntegral (w .&. 0x00FF))
 
-ramLookup :: Word16 -> RAM -> Word8
-ramLookup l ram =
+-- s -> (s, a) is actually State... consider!
+pcLookup :: Gameboy -> (Gameboy, Word8)
+pcLookup gb = (gb & gbCPU . cpuPC +~ 1, res)
+  where
+    res =
+      case M.lookup (gb ^. gbCPU . cpuPC) (gb ^. gbRAM) of
+        (Just v) -> v
+        Nothing -> 0xFF
+
+ramLookup' :: Word16 -> RAM -> Word8
+ramLookup' l ram =
   case M.lookup l ram of
     (Just v) -> v
     Nothing -> 0xFF -- TODO: Check if good default
@@ -123,12 +133,7 @@ writeToRam :: Word16 -> Word8 -> Gameboy -> Gameboy
 writeToRam k v gb = gb & gbRAM . at k ?~ v
 
 runInstruction :: Gameboy -> Gameboy
-runInstruction gb =
-  -- fetch
-  let ni = ramLookup (gb ^. gbCPU . cpuPC) (gb ^. gbRAM)
-   in -- decode
-      -- execute: return GB with executed instruction and updated ProgramCounter
-      execInstruction ni gb
+runInstruction = uncurry execInstruction . swap . pcLookup
 
 execInstruction :: Word8 -> Gameboy -> Gameboy
 execInstruction opcode =
@@ -381,263 +386,260 @@ execInstruction opcode =
     _ -> undefined
 
 cb :: Gameboy -> Gameboy
-cb gb =
-  case ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM) of
-    0x80 -> res0B gb
+cb = uncurry execcb . swap . pcLookup
+
+execcb :: Word8 -> Gameboy -> Gameboy
+execcb opcode =
+  case opcode of
+    0x80 -> res0B
     _ -> undefined
 
 res0B :: Gameboy -> Gameboy
-res0B gb = 
-  gb & gbCPU . cpuRegisterB . bitwiseValue (bit 0) .~ False
-    & gbCPU . cpuPC +~ 2
+res0B = gbCPU . cpuRegisterB . bitwiseValue (bit 0) .~ False
 
 nop :: Gameboy -> Gameboy
 nop = id
 
 -- TODO: Halt until interrupt occurs!
 halt :: Gameboy -> Gameboy
-halt gb = undefined & gbCPU . cpuPC +~ 1
+halt gb = undefined
 
 -- TODO: Low power standby - whatever that is
 -- NOTE: From the specs this should encode as 0x1000, i.e. 2 bytes - since this is unnecessary it is 'sometimes' encoded simply as 0x10
 --       - might need to check whether PC should be incremented by 1 or 2....
 stop :: Gameboy -> Gameboy
-stop gb = undefined & gbCPU . cpuPC +~ 2
+stop gb = undefined & gbCPU . cpuPC +~ 1 -- TODO: Extra inc according to spec. Delete, maybe...
 
 -- TODO: DAA
 daa :: Gameboy -> Gameboy
 daa gb = undefined
 
 ldBA :: Gameboy -> Gameboy
-ldBA gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterA) & gbCPU . cpuPC +~ 1
+ldBA gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterA)
 
 -- Not sure if it actually needs to be implemented in terms other than nop, but here we go
 ldBB :: Gameboy -> Gameboy
-ldBB gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterB) & gbCPU . cpuPC +~ 1
+ldBB gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterB)
 
 ldBC :: Gameboy -> Gameboy
-ldBC gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterC) & gbCPU . cpuPC +~ 1
+ldBC gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterC)
 
 ldBD :: Gameboy -> Gameboy
-ldBD gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterD) & gbCPU . cpuPC +~ 1
+ldBD gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterD)
 
 ldBE :: Gameboy -> Gameboy
-ldBE gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterE) & gbCPU . cpuPC +~ 1
+ldBE gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterE)
 
 ldBH :: Gameboy -> Gameboy
-ldBH gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterH) & gbCPU . cpuPC +~ 1
+ldBH gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterH)
 
 ldBL :: Gameboy -> Gameboy
-ldBL gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterL) & gbCPU . cpuPC +~ 1
+ldBL gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldBHL :: Gameboy -> Gameboy
-ldBHL gb = gb & gbCPU . cpuRegisterB .~ ramLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & gbCPU . cpuPC +~ 1
+ldBHL gb = gb & gbCPU . cpuRegisterB .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
 
 ldCA :: Gameboy -> Gameboy
-ldCA gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterA) & gbCPU . cpuPC +~ 1
+ldCA gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterA)
 
 ldCB :: Gameboy -> Gameboy
-ldCB gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterB) & gbCPU . cpuPC +~ 1
+ldCB gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterB)
 
 ldCC :: Gameboy -> Gameboy
-ldCC gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterC) & gbCPU . cpuPC +~ 1
+ldCC gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterC)
 
 ldCD :: Gameboy -> Gameboy
-ldCD gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterD) & gbCPU . cpuPC +~ 1
+ldCD gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterD)
 
 ldCE :: Gameboy -> Gameboy
-ldCE gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterE) & gbCPU . cpuPC +~ 1
+ldCE gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterE)
 
 ldCH :: Gameboy -> Gameboy
-ldCH gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterH) & gbCPU . cpuPC +~ 1
+ldCH gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterH)
 
 ldCL :: Gameboy -> Gameboy
-ldCL gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterL) & gbCPU . cpuPC +~ 1
+ldCL gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldCHL :: Gameboy -> Gameboy
-ldCHL gb = gb & gbCPU . cpuRegisterC .~ ramLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & gbCPU . cpuPC +~ 1
+ldCHL gb = gb & gbCPU . cpuRegisterC .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
 
 ldDA :: Gameboy -> Gameboy
-ldDA gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterA) & gbCPU . cpuPC +~ 1
+ldDA gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterA)
 
 ldDB :: Gameboy -> Gameboy
-ldDB gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterB) & gbCPU . cpuPC +~ 1
+ldDB gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterB)
 
 ldDC :: Gameboy -> Gameboy
-ldDC gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterC) & gbCPU . cpuPC +~ 1
+ldDC gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterC)
 
 ldDD :: Gameboy -> Gameboy
-ldDD gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterD) & gbCPU . cpuPC +~ 1
+ldDD gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterD)
 
 ldDE :: Gameboy -> Gameboy
-ldDE gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterE) & gbCPU . cpuPC +~ 1
+ldDE gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterE)
 
 ldDH :: Gameboy -> Gameboy
-ldDH gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterH) & gbCPU . cpuPC +~ 1
+ldDH gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterH)
 
 ldDL :: Gameboy -> Gameboy
-ldDL gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterL) & gbCPU . cpuPC +~ 1
+ldDL gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldDHL :: Gameboy -> Gameboy
-ldDHL gb = gb & gbCPU . cpuRegisterD .~ ramLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & gbCPU . cpuPC +~ 1
+ldDHL gb = gb & gbCPU . cpuRegisterD .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
 
 ldEA :: Gameboy -> Gameboy
-ldEA gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterA) & gbCPU . cpuPC +~ 1
+ldEA gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterA)
 
 ldEB :: Gameboy -> Gameboy
-ldEB gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterB) & gbCPU . cpuPC +~ 1
+ldEB gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterB)
 
 ldEC :: Gameboy -> Gameboy
-ldEC gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterC) & gbCPU . cpuPC +~ 1
+ldEC gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterC)
 
 ldED :: Gameboy -> Gameboy
-ldED gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterD) & gbCPU . cpuPC +~ 1
+ldED gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterD)
 
 ldEE :: Gameboy -> Gameboy
-ldEE gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterE) & gbCPU . cpuPC +~ 1
+ldEE gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterE)
 
 ldEH :: Gameboy -> Gameboy
-ldEH gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterH) & gbCPU . cpuPC +~ 1
+ldEH gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterH)
 
 ldEL :: Gameboy -> Gameboy
-ldEL gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterL) & gbCPU . cpuPC +~ 1
+ldEL gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldEHL :: Gameboy -> Gameboy
-ldEHL gb = gb & gbCPU . cpuRegisterE .~ ramLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & gbCPU . cpuPC +~ 1
+ldEHL gb = gb & gbCPU . cpuRegisterE .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
 
 ldHA :: Gameboy -> Gameboy
-ldHA gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterA) & gbCPU . cpuPC +~ 1
+ldHA gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterA)
 
 ldHB :: Gameboy -> Gameboy
-ldHB gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterB) & gbCPU . cpuPC +~ 1
+ldHB gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterB)
 
 ldHC :: Gameboy -> Gameboy
-ldHC gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterC) & gbCPU . cpuPC +~ 1
+ldHC gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterC)
 
 ldHD :: Gameboy -> Gameboy
-ldHD gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterD) & gbCPU . cpuPC +~ 1
+ldHD gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterD)
 
 ldHE :: Gameboy -> Gameboy
-ldHE gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterE) & gbCPU . cpuPC +~ 1
+ldHE gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterE)
 
 ldHH :: Gameboy -> Gameboy
-ldHH gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterH) & gbCPU . cpuPC +~ 1
+ldHH gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterH)
 
 ldHL :: Gameboy -> Gameboy
-ldHL gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterL) & gbCPU . cpuPC +~ 1
+ldHL gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldHHL :: Gameboy -> Gameboy
-ldHHL gb = gb & gbCPU . cpuRegisterH .~ ramLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & gbCPU . cpuPC +~ 1
+ldHHL gb = gb & gbCPU . cpuRegisterH .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
 
 ldLA :: Gameboy -> Gameboy
-ldLA gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterA) & gbCPU . cpuPC +~ 1
+ldLA gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterA)
 
 ldLB :: Gameboy -> Gameboy
-ldLB gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterB) & gbCPU . cpuPC +~ 1
+ldLB gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterB)
 
 ldLC :: Gameboy -> Gameboy
-ldLC gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterC) & gbCPU . cpuPC +~ 1
+ldLC gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterC)
 
 ldLD :: Gameboy -> Gameboy
-ldLD gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterD) & gbCPU . cpuPC +~ 1
+ldLD gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterD)
 
 ldLE :: Gameboy -> Gameboy
-ldLE gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterE) & gbCPU . cpuPC +~ 1
+ldLE gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterE)
 
 ldLH :: Gameboy -> Gameboy
-ldLH gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterH) & gbCPU . cpuPC +~ 1
+ldLH gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterH)
 
 ldLL :: Gameboy -> Gameboy
-ldLL gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterL) & gbCPU . cpuPC +~ 1
+ldLL gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldLHL :: Gameboy -> Gameboy
-ldLHL gb = gb & gbCPU . cpuRegisterL .~ ramLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & gbCPU . cpuPC +~ 1
+ldLHL gb = gb & gbCPU . cpuRegisterL .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
 
 ldHLA :: Gameboy -> Gameboy
-ldHLA gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterA) gb & gbCPU . cpuPC +~ 1
+ldHLA gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterA) gb
 
 ldHLB :: Gameboy -> Gameboy
-ldHLB gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterB) gb & gbCPU . cpuPC +~ 1
+ldHLB gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterB) gb
 
 ldHLC :: Gameboy -> Gameboy
-ldHLC gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterC) gb & gbCPU . cpuPC +~ 1
+ldHLC gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterC) gb
 
 ldHLD :: Gameboy -> Gameboy
-ldHLD gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterD) gb & gbCPU . cpuPC +~ 1
+ldHLD gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterD) gb
 
 ldHLE :: Gameboy -> Gameboy
-ldHLE gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterE) gb & gbCPU . cpuPC +~ 1
+ldHLE gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterE) gb
 
 ldHLH :: Gameboy -> Gameboy
-ldHLH gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterH) gb & gbCPU . cpuPC +~ 1
+ldHLH gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterH) gb
 
 ldHLL :: Gameboy -> Gameboy
-ldHLL gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterL) gb & gbCPU . cpuPC +~ 1
+ldHLL gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterL) gb
 
 ldAA :: Gameboy -> Gameboy
-ldAA gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterA) & gbCPU . cpuPC +~ 1
+ldAA gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterA)
 
 ldAB :: Gameboy -> Gameboy
-ldAB gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterB) & gbCPU . cpuPC +~ 1
+ldAB gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterB)
 
 ldAC :: Gameboy -> Gameboy
-ldAC gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterC) & gbCPU . cpuPC +~ 1
+ldAC gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterC)
 
 ldAD :: Gameboy -> Gameboy
-ldAD gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterD) & gbCPU . cpuPC +~ 1
+ldAD gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterD)
 
 ldAE :: Gameboy -> Gameboy
-ldAE gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterE) & gbCPU . cpuPC +~ 1
+ldAE gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterE)
 
 ldAH :: Gameboy -> Gameboy
-ldAH gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterH) & gbCPU . cpuPC +~ 1
+ldAH gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterH)
 
 ldAL :: Gameboy -> Gameboy
-ldAL gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterL) & gbCPU . cpuPC +~ 1
+ldAL gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldAHL :: Gameboy -> Gameboy
-ldAHL gb = gb & gbCPU . cpuRegisterA .~ ramLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & gbCPU . cpuPC +~ 1
+ldAHL gb = gb & gbCPU . cpuRegisterA .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
 
 ldABC :: Gameboy -> Gameboy
-ldABC gb = gb & gbCPU . cpuRegisterA .~ ramLookup (gb ^. gbCPU . cpuRegisterBC) (gb ^. gbRAM) & gbCPU . cpuPC +~ 1
+ldABC gb = gb & gbCPU . cpuRegisterA .~ ramLookup' (gb ^. gbCPU . cpuRegisterBC) (gb ^. gbRAM)
 
 ldADE :: Gameboy -> Gameboy
-ldADE gb = gb & gbCPU . cpuRegisterA .~ ramLookup (gb ^. gbCPU . cpuRegisterDE) (gb ^. gbRAM) & gbCPU . cpuPC +~ 1
+ldADE gb = gb & gbCPU . cpuRegisterA .~ ramLookup' (gb ^. gbCPU . cpuRegisterDE) (gb ^. gbRAM)
 
 ldBCA :: Gameboy -> Gameboy
-ldBCA gb = writeToRam (gb ^. gbCPU . cpuRegisterBC) (gb ^. gbCPU . cpuRegisterA) gb & gbCPU . cpuPC +~ 1
+ldBCA gb = writeToRam (gb ^. gbCPU . cpuRegisterBC) (gb ^. gbCPU . cpuRegisterA) gb
 
 ldDEA :: Gameboy -> Gameboy
-ldDEA gb = writeToRam (gb ^. gbCPU . cpuRegisterDE) (gb ^. gbCPU . cpuRegisterA) gb & gbCPU . cpuPC +~ 1
+ldDEA gb = writeToRam (gb ^. gbCPU . cpuRegisterDE) (gb ^. gbCPU . cpuRegisterA) gb
 
 ldHLplusA :: Gameboy -> Gameboy
 ldHLplusA gb =
   writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterA) gb
     & gbCPU . cpuRegisterHL +~ 1
-    & gbCPU . cpuPC +~ 1
 
 ldHLminusA :: Gameboy -> Gameboy
 ldHLminusA gb =
   writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterA) gb
     & gbCPU . cpuRegisterHL -~ 1
-    & gbCPU . cpuPC +~ 1
 
 ldAHLplus :: Gameboy -> Gameboy
 ldAHLplus gb =
-  gb & gbCPU . cpuRegisterA .~ ramLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+  gb & gbCPU . cpuRegisterA .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
     & gbCPU . cpuRegisterHL +~ 1
-    & gbCPU . cpuPC +~ 1
 
 ldAHLminus :: Gameboy -> Gameboy
 ldAHLminus gb =
-  gb & gbCPU . cpuRegisterA .~ ramLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+  gb & gbCPU . cpuRegisterA .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
     & gbCPU . cpuRegisterHL -~ 1
-    & gbCPU . cpuPC +~ 1
 
 ldd8 :: Lens' CPU Word8 -> Gameboy -> Gameboy
-ldd8 reg gb =
-  gb & gbCPU . reg .~ ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM)
-    & gbCPU . cpuPC +~ 2
+ldd8 reg gb = gb' & gbCPU . reg .~ d8
+  where
+    (gb', d8) = pcLookup gb
 
 ldBd8 :: Gameboy -> Gameboy
 ldBd8 = ldd8 cpuRegisterB
@@ -661,17 +663,15 @@ ldAd8 :: Gameboy -> Gameboy
 ldAd8 = ldd8 cpuRegisterA
 
 ldHLd8 :: Gameboy -> Gameboy
-ldHLd8 gb =
-  gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) (ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM))
-    & gbCPU . cpuPC +~ 2
+ldHLd8 gb = gb' & writeToRam (gb ^. gbCPU . cpuRegisterHL) d8
+  where
+    (gb', d8) = pcLookup gb
 
 ldd16 :: Lens' CPU Word16 -> Gameboy -> Gameboy
-ldd16 reg gb =
-  gb & gbCPU . reg .~ mkWord16 msb lsb
-    & gbCPU . cpuPC +~ 3
+ldd16 reg gb = gb'' & gbCPU . reg .~ mkWord16 msb lsb
   where
-    lsb = ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM)
-    msb = ramLookup (gb ^. gbCPU . cpuPC + 2) (gb ^. gbRAM)
+    (gb', lsb) = pcLookup gb
+    (gb'', msb) = pcLookup gb'
 
 ldBCd16 :: Gameboy -> Gameboy
 ldBCd16 = ldd16 cpuRegisterBC
@@ -687,58 +687,51 @@ ldSPd16 = ldd16 cpuSP
 
 lda16SP :: Gameboy -> Gameboy
 lda16SP gb =
-  gb & writeToRam (mkWord16 msb lsb) splsb
+  gb'' & writeToRam (mkWord16 msb lsb) splsb
     & writeToRam (mkWord16 msb lsb + 1) spmsb
-    & gbCPU . cpuPC +~ 3
   where
     (spmsb, splsb) = splitWord16 (gb ^. gbCPU . cpuSP)
-    lsb = ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM)
-    msb = ramLookup (gb ^. gbCPU . cpuPC + 2) (gb ^. gbRAM)
+    (gb', lsb) = pcLookup gb
+    (gb'', msb) = pcLookup gb'
 
 lda16A :: Gameboy -> Gameboy
-lda16A gb =
-  gb & writeToRam (mkWord16 msb lsb) (gb ^. gbCPU . cpuRegisterA)
-    & gbCPU . cpuPC +~ 3
+lda16A gb = gb'' & writeToRam (mkWord16 msb lsb) (gb ^. gbCPU . cpuRegisterA)
   where
-    lsb = ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM)
-    msb = ramLookup (gb ^. gbCPU . cpuPC + 2) (gb ^. gbRAM)
+    (gb', lsb) = pcLookup gb
+    (gb'', msb) = pcLookup gb'
 
 ldAa16 :: Gameboy -> Gameboy
-ldAa16 gb =
-  gb & gbCPU . cpuRegisterA .~ ramLookup (mkWord16 msb lsb) (gb ^. gbRAM)
-    & gbCPU . cpuPC +~ 3
+ldAa16 gb = gb'' & gbCPU . cpuRegisterA .~ ramLookup' (mkWord16 msb lsb) (gb ^. gbRAM)
   where
-    lsb = ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM)
-    msb = ramLookup (gb ^. gbCPU . cpuPC + 2) (gb ^. gbRAM)
+    (gb', lsb) = pcLookup gb
+    (gb'', msb) = pcLookup gb'
 
 ldSPHL :: Gameboy -> Gameboy
-ldSPHL gb =
-  gb & gbCPU . cpuSP .~ (gb ^. gbCPU . cpuRegisterHL)
-    & gbCPU . cpuPC +~ 1
+ldSPHL gb = gb & gbCPU . cpuSP .~ (gb ^. gbCPU . cpuRegisterHL)
 
 incBC :: Gameboy -> Gameboy
-incBC gb = gb & gbCPU . cpuRegisterBC +~ 1 & gbCPU . cpuPC +~ 1
+incBC gb = gb & gbCPU . cpuRegisterBC +~ 1
 
 incDE :: Gameboy -> Gameboy
-incDE gb = gb & gbCPU . cpuRegisterDE +~ 1 & gbCPU . cpuPC +~ 1
+incDE gb = gb & gbCPU . cpuRegisterDE +~ 1
 
 incHL :: Gameboy -> Gameboy
-incHL gb = gb & gbCPU . cpuRegisterHL +~ 1 & gbCPU . cpuPC +~ 1
+incHL gb = gb & gbCPU . cpuRegisterHL +~ 1
 
 incSP :: Gameboy -> Gameboy
-incSP gb = gb & gbCPU . cpuSP +~ 1 & gbCPU . cpuPC +~ 1
+incSP gb = gb & gbCPU . cpuSP +~ 1
 
 decBC :: Gameboy -> Gameboy
-decBC gb = gb & gbCPU . cpuRegisterBC -~ 1 & gbCPU . cpuPC +~ 1
+decBC gb = gb & gbCPU . cpuRegisterBC -~ 1
 
 decDE :: Gameboy -> Gameboy
-decDE gb = gb & gbCPU . cpuRegisterDE -~ 1 & gbCPU . cpuPC +~ 1
+decDE gb = gb & gbCPU . cpuRegisterDE -~ 1
 
 decHL :: Gameboy -> Gameboy
-decHL gb = gb & gbCPU . cpuRegisterHL -~ 1 & gbCPU . cpuPC +~ 1
+decHL gb = gb & gbCPU . cpuRegisterHL -~ 1
 
 decSP :: Gameboy -> Gameboy
-decSP gb = gb & gbCPU . cpuSP -~ 1 & gbCPU . cpuPC +~ 1
+decSP gb = gb & gbCPU . cpuSP -~ 1
 
 rlA :: Gameboy -> Gameboy
 rlA gb =
@@ -748,7 +741,6 @@ rlA gb =
     & gbCPU . cpuFlagZ .~ False
     & gbCPU . cpuFlagN .~ False
     & gbCPU . cpuFlagH .~ False
-    & gbCPU . cpuPC +~ 1
   where
     old7th = gb ^. gbCPU . cpuRegisterA . bitwiseValue (bit 7)
     new7th = gb ^. gbCPU . cpuFlagC
@@ -761,7 +753,6 @@ rrA gb =
     & gbCPU . cpuFlagZ .~ False
     & gbCPU . cpuFlagN .~ False
     & gbCPU . cpuFlagH .~ False
-    & gbCPU . cpuPC +~ 1
   where
     old0th = gb ^. gbCPU . cpuRegisterA . bitwiseValue (bit 0)
     new0th = gb ^. gbCPU . cpuFlagC
@@ -775,7 +766,6 @@ rlcA gb =
     & gbCPU . cpuFlagZ .~ False
     & gbCPU . cpuFlagN .~ False
     & gbCPU . cpuFlagH .~ False
-    & gbCPU . cpuPC +~ 1
   where
     old7th = gb ^. gbCPU . cpuRegisterA . bitwiseValue (bit 7)
 
@@ -786,7 +776,6 @@ rrcA gb =
     & gbCPU . cpuFlagZ .~ False
     & gbCPU . cpuFlagN .~ False
     & gbCPU . cpuFlagH .~ False
-    & gbCPU . cpuPC +~ 1
   where
     old0th = gb ^. gbCPU . cpuRegisterA . bitwiseValue (bit 0)
 
@@ -796,7 +785,6 @@ inc reg gb =
     & gbCPU . cpuFlagH .~ (0x0F .&. gb ^. gbCPU . reg + 1 > 0x0F)
     & gbCPU . cpuFlagZ .~ (gb ^. gbCPU . reg + 1 == 0x00)
     & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuPC +~ 1
 
 incB :: Gameboy -> Gameboy
 incB = inc cpuRegisterB
@@ -825,9 +813,8 @@ incHL_ gb =
     & gbCPU . cpuFlagH .~ (0x0F .&. val + 1 > 0x0F)
     & gbCPU . cpuFlagZ .~ (val + 1 == 0x00)
     & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuPC +~ 1
   where
-    val = ramLookup (gb ^. address) (gb ^. gbRAM)
+    val = ramLookup' (gb ^. address) (gb ^. gbRAM)
     address = gbCPU . cpuRegisterHL
 
 dec :: Lens' CPU Word8 -> Gameboy -> Gameboy
@@ -836,7 +823,6 @@ dec reg gb =
     & gbCPU . cpuFlagH .~ (0x0F .&. gb ^. gbCPU . reg == 0x00)
     & gbCPU . cpuFlagZ .~ (gb ^. gbCPU . reg - 1 == 0x00)
     & gbCPU . cpuFlagN .~ True
-    & gbCPU . cpuPC +~ 1
 
 decB :: Gameboy -> Gameboy
 decB = dec cpuRegisterB
@@ -865,9 +851,8 @@ decHL_ gb =
     & gbCPU . cpuFlagH .~ (0x0F .&. val == 0x00)
     & gbCPU . cpuFlagZ .~ (val - 1 == 0x00)
     & gbCPU . cpuFlagN .~ True
-    & gbCPU . cpuPC +~ 1
   where
-    val = ramLookup (gb ^. address) (gb ^. gbRAM)
+    val = ramLookup' (gb ^. address) (gb ^. gbRAM)
     address = gbCPU . cpuRegisterHL
 
 addHL :: Lens' CPU Word16 -> Gameboy -> Gameboy
@@ -876,7 +861,6 @@ addHL reg gb =
     & gbCPU . cpuFlagC .~ (op1 + op2 < op1)
     & gbCPU . cpuFlagH .~ (0x0FFF .&. op1 + 0x0FFF .&. op2 > 0x0FFF)
     & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuPC +~ 1
   where
     op1 = gb ^. gbCPU . cpuRegisterHL
     op2 = gb ^. gbCPU . reg
@@ -898,19 +882,18 @@ addSPr8 gb =
   (
     if r8 >= 0
       then 
-        gb & gbCPU . cpuSP .~ op1 + op2 
+        gb' & gbCPU . cpuSP .~ op1 + op2 
         & gbCPU . cpuFlagC .~ (op1 + op2 < op1)
         & gbCPU . cpuFlagH .~ (0x0FFF .&. op1 + 0x0FFF .&. op2 > 0x0FFF)
       else 
-        gb &gbCPU . cpuSP .~ op1 - op2 
+        gb' & gbCPU . cpuSP .~ op1 - op2 
         & gbCPU . cpuFlagC .~ (op1 - op2 > op1)
         & gbCPU . cpuFlagH .~ (0x0FFF .&. op1 - 0x0FFF .&. op2 < 0x0FFF) -- TODO: Is this correct??
   )
     & gbCPU . cpuFlagZ .~ False
     & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuPC +~ 2
   where
-    r8 = fromIntegral $ ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM) :: Int8
+    (gb', r8) = fromIntegral <$> pcLookup gb :: (Gameboy, Int8)
     op1 = gb ^. gbCPU . cpuSP
     op2 = fromIntegral (abs r8)
 
@@ -919,19 +902,18 @@ ldHLSPplusr8 gb =
   (
     if r8 >= 0
       then 
-        gb & gbCPU . cpuRegisterHL .~ op1 + op2 
+        gb' & gbCPU . cpuRegisterHL .~ op1 + op2 
         & gbCPU . cpuFlagC .~ (op1 + op2 < op1)
         & gbCPU . cpuFlagH .~ (0x0FFF .&. op1 + 0x0FFF .&. op2 > 0x0FFF)
       else 
-        gb &gbCPU . cpuRegisterHL .~ op1 - op2 
+        gb' & gbCPU . cpuRegisterHL .~ op1 - op2 
         & gbCPU . cpuFlagC .~ (op1 - op2 > op1)
         & gbCPU . cpuFlagH .~ (0x0FFF .&. op1 - 0x0FFF .&. op2 < 0x0FFF) -- TODO: Is this correct??
   )
     & gbCPU . cpuFlagZ .~ False
     & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuPC +~ 2
   where
-    r8 = fromIntegral $ ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM) :: Int8
+    (gb', r8) = fromIntegral <$> pcLookup gb :: (Gameboy, Int8)
     op1 = gb ^. gbCPU . cpuSP
     op2 = fromIntegral (abs r8)
 
@@ -942,7 +924,6 @@ addA reg gb =
     & gbCPU . cpuFlagH .~ (op1 + op2 < op1) -- I suppose H in this context is just C...?
     & gbCPU . cpuFlagC .~ (op1 + op2 < op1)
     & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuPC +~ 1
   where
     op1 = gb ^. gbCPU . cpuRegisterA
     op2 = gb ^. gbCPU . reg
@@ -966,22 +947,21 @@ addAL :: Gameboy -> Gameboy
 addAL = addA cpuRegisterL
 
 addAHL :: Gameboy -> Gameboy
-addAHL gb = addA (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+addAHL gb = addA (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
 
 addAA :: Gameboy -> Gameboy
 addAA = addA cpuRegisterA
 
 addAd8 :: Gameboy -> Gameboy
 addAd8 gb =
-  gb & gbCPU . cpuRegisterA .~ op1 + op2
+  gb' & gbCPU . cpuRegisterA .~ op1 + op2
     & gbCPU . cpuFlagZ .~ (op1 + op2 == 0x00)
     & gbCPU . cpuFlagH .~ (op1 + op2 < op1)
     & gbCPU . cpuFlagC .~ (op1 + op2 < op1)
     & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuPC +~ 2
   where
     op1 = gb ^. gbCPU . cpuRegisterA
-    op2 = ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM)
+    (gb', op2) = pcLookup gb
 
 adcA :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
 adcA reg gb =
@@ -990,7 +970,6 @@ adcA reg gb =
     & gbCPU . cpuFlagH .~ (op1 + op2 < op1 || (op1 + op2 + cy < op1)) -- I suppose H in this context is just C...?
     & gbCPU . cpuFlagC .~ (op1 + op2 < op1 || (op1 + op2 + cy < op1)) -- FIXME: There must be sth more elegant :/
     & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuPC +~ 1
   where
     op1 = gb ^. gbCPU . cpuRegisterA
     op2 = gb ^. gbCPU . reg
@@ -1015,15 +994,15 @@ adcAL :: Gameboy -> Gameboy
 adcAL = adcA cpuRegisterL
 
 adcAHL :: Gameboy -> Gameboy
-adcAHL gb = adcA (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+adcAHL gb = adcA (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
 
 adcAA :: Gameboy -> Gameboy
 adcAA = adcA cpuRegisterA
 
 adcAd8 :: Gameboy -> Gameboy
-adcAd8 gb = 
-  gb & adcA (cpuPC . to (+1) . to (`ramLookup` (gb ^. gbRAM)))
-    & gbCPU . cpuPC +~ 1
+adcAd8 gb = gb' & adcA (to (const d8))
+  where
+    (gb', d8) = pcLookup gb
 
 
 sub :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
@@ -1033,7 +1012,6 @@ sub reg gb =
     & gbCPU . cpuFlagH .~ (op1 - op2 > op1) -- I suppose H in this context is just C...?
     & gbCPU . cpuFlagC .~ (op1 - op2 > op1)
     & gbCPU . cpuFlagN .~ True
-    & gbCPU . cpuPC +~ 1
   where
     op1 = gb ^. gbCPU . cpuRegisterA
     op2 = gb ^. gbCPU . reg
@@ -1057,15 +1035,15 @@ subL :: Gameboy -> Gameboy
 subL = sub cpuRegisterL
 
 subHL :: Gameboy -> Gameboy
-subHL gb = sub (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+subHL gb = sub (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
 
 subA :: Gameboy -> Gameboy
 subA = sub cpuRegisterA
 
 subd8 :: Gameboy -> Gameboy
-subd8 gb = 
-  gb & sub (cpuPC . to (+1) . to (`ramLookup` (gb ^. gbRAM)))
-    & gbCPU . cpuPC +~ 1
+subd8 gb = gb' & sub (to (const d8))
+  where
+    (gb', d8) = pcLookup gb
 
 sbc :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
 sbc reg gb =
@@ -1074,7 +1052,6 @@ sbc reg gb =
     & gbCPU . cpuFlagH .~ (op1 - op2 > op1 || op1 - op2 - cy > op1) -- I suppose H in this context is just C...?
     & gbCPU . cpuFlagC .~ (op1 - op2 > op1 || op1 - op2 - cy > op1)
     & gbCPU . cpuFlagN .~ True
-    & gbCPU . cpuPC +~ 1
   where
     op1 = gb ^. gbCPU . cpuRegisterA
     op2 = gb ^. gbCPU . reg
@@ -1099,15 +1076,15 @@ sbcL :: Gameboy -> Gameboy
 sbcL = sbc cpuRegisterL
 
 sbcHL :: Gameboy -> Gameboy
-sbcHL gb = sbc (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+sbcHL gb = sbc (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
 
 sbcA :: Gameboy -> Gameboy
 sbcA = sbc cpuRegisterA
 
 sbcAd8 :: Gameboy -> Gameboy
-sbcAd8 gb = 
-  gb & sbc (cpuPC . to (+1) . to (`ramLookup` (gb ^. gbRAM)))
-    & gbCPU . cpuPC +~ 1
+sbcAd8 gb = gb' & sbc (to (const d8))
+  where
+    (gb', d8) = pcLookup gb
 
 aAnd :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
 aAnd reg gb =
@@ -1116,7 +1093,6 @@ aAnd reg gb =
     & gbCPU . cpuFlagN .~ False
     & gbCPU . cpuFlagH .~ True
     & gbCPU . cpuFlagC .~ False
-    & gbCPU . cpuPC +~ 1
   where
     op1 = gb ^. gbCPU . cpuRegisterA
     op2 = gb ^. gbCPU . reg
@@ -1141,15 +1117,15 @@ andL :: Gameboy -> Gameboy
 andL = aAnd cpuRegisterL
 
 andHL :: Gameboy -> Gameboy
-andHL gb = aAnd (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+andHL gb = aAnd (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
 
 andA :: Gameboy -> Gameboy
 andA = aAnd cpuRegisterA
 
 andd8 :: Gameboy -> Gameboy
-andd8 gb = 
-  gb & aAnd (cpuPC . to (+1) . to (`ramLookup` (gb ^. gbRAM)))
-    & gbCPU . cpuPC +~ 1
+andd8 gb = gb' & aAnd (to (const d8))
+  where
+    (gb', d8) = pcLookup gb
 
 aXor :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
 aXor reg gb =
@@ -1158,7 +1134,6 @@ aXor reg gb =
     & gbCPU . cpuFlagN .~ False
     & gbCPU . cpuFlagH .~ False
     & gbCPU . cpuFlagC .~ False
-    & gbCPU . cpuPC +~ 1
   where
     op1 = gb ^. gbCPU . cpuRegisterA
     op2 = gb ^. gbCPU . reg
@@ -1182,15 +1157,15 @@ xorL :: Gameboy -> Gameboy
 xorL = aXor cpuRegisterL
 
 xorHL :: Gameboy -> Gameboy
-xorHL gb = aXor (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+xorHL gb = aXor (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
 
 xorA :: Gameboy -> Gameboy
 xorA = aXor cpuRegisterA
 
 xord8 :: Gameboy -> Gameboy
-xord8 gb = 
-  gb & aXor (cpuPC . to (+1) . to (`ramLookup` (gb ^. gbRAM)))
-    & gbCPU . cpuPC +~ 1
+xord8 gb = gb' & aXor (to (const d8))
+  where
+    (gb', d8) = pcLookup gb
 
 aor :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
 aor reg gb =
@@ -1199,7 +1174,6 @@ aor reg gb =
     & gbCPU . cpuFlagN .~ False
     & gbCPU . cpuFlagH .~ False
     & gbCPU . cpuFlagC .~ False
-    & gbCPU . cpuPC +~ 1
   where
     op1 = gb ^. gbCPU . cpuRegisterA
     op2 = gb ^. gbCPU . reg
@@ -1223,15 +1197,15 @@ orL :: Gameboy -> Gameboy
 orL = aor cpuRegisterL
 
 orHL :: Gameboy -> Gameboy
-orHL gb = aor (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+orHL gb = aor (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
 
 orA :: Gameboy -> Gameboy
 orA = aor cpuRegisterA
 
 ord8 :: Gameboy -> Gameboy
-ord8 gb = 
-  gb & aor (cpuPC . to (+1) . to (`ramLookup` (gb ^. gbRAM)))
-    & gbCPU . cpuPC +~ 1
+ord8 gb = gb' & aor (to (const d8))
+  where
+    (gb', d8) = pcLookup gb
 
 -- NOTE: This is just sub without writing into A. Consider seperation of flag effects, operations, and actual writing of registers?
 acp :: Getting Word8 CPU Word8 -> Gameboy -> Gameboy
@@ -1240,7 +1214,6 @@ acp reg gb =
     & gbCPU . cpuFlagN .~ True
     & gbCPU . cpuFlagH .~ (op1 - op2 > op1)
     & gbCPU . cpuFlagC .~ (op1 - op2 > op1)
-    & gbCPU . cpuPC +~ 1
   where
     op1 = gb ^. gbCPU . cpuRegisterA
     op2 = gb ^. gbCPU . reg
@@ -1264,147 +1237,141 @@ cpL :: Gameboy -> Gameboy
 cpL = acp cpuRegisterL
 
 cpHL :: Gameboy -> Gameboy
-cpHL gb = acp (cpuRegisterHL . to (`ramLookup` (gb ^. gbRAM))) gb
+cpHL gb = acp (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
 
 cpA :: Gameboy -> Gameboy
 cpA = acp cpuRegisterA
 
 cpd8 :: Gameboy -> Gameboy
-cpd8 gb = 
-  gb & acp (cpuPC . to (+1) . to (`ramLookup` (gb ^. gbRAM)))
-    & gbCPU . cpuPC +~ 1
+cpd8 gb = gb' & acp (to (const d8))
+  where
+    (gb', d8) = pcLookup gb
 
 jrr8 :: Gameboy -> Gameboy
 jrr8 gb =
-  gb & gbCPU . cpuPC +~ 2 -- 1 opcode, 1 lookup, THEN relative jumping
-    & ( if r8 < 0
+  gb' & ( if r8 < 0
           then gbCPU . cpuPC -~ fromIntegral (abs r8)
           else gbCPU . cpuPC +~ fromIntegral r8
       )
   where
-    r8 = fromIntegral $ ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM) :: Int8
+    (gb', r8) = fromIntegral <$> pcLookup gb :: (Gameboy, Int8)
 
 -- TODO: Consider whether implementation in terms of jrr8 is a good idea or not...
 jrZr8 :: Gameboy -> Gameboy
 jrZr8 gb =
   if gb ^. gbCPU . cpuFlagZ
     then jrr8 gb
-    else gb & gbCPU . cpuPC +~ 2
+    else fst . pcLookup $ gb -- read it and throw it away...
 
 jrNZr8 :: Gameboy -> Gameboy
 jrNZr8 gb =
   if not (gb ^. gbCPU . cpuFlagZ)
     then jrr8 gb
-    else gb & gbCPU . cpuPC +~ 2
+    else fst . pcLookup $ gb
 
 jrCr8 :: Gameboy -> Gameboy
 jrCr8 gb =
   if gb ^. gbCPU . cpuFlagC
     then jrr8 gb
-    else gb & gbCPU . cpuPC +~ 2
+    else fst . pcLookup $ gb
 
 jrNCr8 :: Gameboy -> Gameboy
 jrNCr8 gb =
   if not (gb ^. gbCPU . cpuFlagC)
     then jrr8 gb
-    else gb & gbCPU . cpuPC +~ 2
+    else fst . pcLookup $ gb
 
 jpHL :: Gameboy -> Gameboy
 jpHL gb = 
   gb & gbCPU . cpuPC .~ (gb ^. gbCPU . cpuRegisterHL)
 
 jpa16 :: Gameboy -> Gameboy
-jpa16 gb =
-  gb & gbCPU . cpuPC .~ mkWord16 msb lsb
+jpa16 gb = gb'' & gbCPU . cpuPC .~ mkWord16 msb lsb
   where
-    lsb = ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM)
-    msb = ramLookup (gb ^. gbCPU . cpuPC + 2) (gb ^. gbRAM)
+    (gb', lsb) = pcLookup gb
+    (gb'', msb) = pcLookup gb'
 
 jpZa16 :: Gameboy -> Gameboy
 jpZa16 gb =
   if gb ^. gbCPU . cpuFlagZ
     then jpa16 gb
-    else gb & gbCPU . cpuPC +~ 3
+    else fst . pcLookup . fst . pcLookup $ gb
 
 jpNZa16 :: Gameboy -> Gameboy
 jpNZa16 gb =
   if not (gb ^. gbCPU . cpuFlagZ)
     then jpa16 gb
-    else gb & gbCPU . cpuPC +~ 3
+    else fst . pcLookup . fst . pcLookup $ gb
 
 jpCa16 :: Gameboy -> Gameboy
 jpCa16 gb =
   if gb ^. gbCPU . cpuFlagC
     then jpa16 gb
-    else gb & gbCPU . cpuPC +~ 3
+    else fst . pcLookup . fst . pcLookup $ gb
 
 jpNCa16 :: Gameboy -> Gameboy
 jpNCa16 gb =
   if not (gb ^. gbCPU . cpuFlagC)
     then jpa16 gb
-    else gb & gbCPU . cpuPC +~ 3
+    else fst . pcLookup . fst . pcLookup $ gb
 
 cpl :: Gameboy -> Gameboy
 cpl gb =
   gb & gbCPU . cpuRegisterA %~ complement
     & gbCPU . cpuFlagN .~ True
     & gbCPU . cpuFlagH .~ True
-    & gbCPU . cpuPC +~ 1
 
 scf :: Gameboy -> Gameboy
 scf gb =
   gb & gbCPU . cpuFlagC .~ True
     & gbCPU . cpuFlagN .~ False
     & gbCPU . cpuFlagH .~ False
-    & gbCPU . cpuPC +~ 1
 
 ccf :: Gameboy -> Gameboy
 ccf gb =
   gb & gbCPU . cpuFlagC %~ not
     & gbCPU . cpuFlagN .~ False
     & gbCPU . cpuFlagH .~ False
-    & gbCPU . cpuPC +~ 1
 
 ret :: Gameboy -> Gameboy
-ret gb =
+ret gb = 
   gb & gbCPU . cpuPC .~ mkWord16 msb lsb
     & gbCPU . cpuSP +~ 2
   where
-    lsb = ramLookup (gb ^. gbCPU . cpuSP) (gb ^. gbRAM)
-    msb = ramLookup (gb ^. gbCPU . cpuSP + 1) (gb ^. gbRAM)
+    lsb = ramLookup' (gb ^. gbCPU . cpuSP) (gb ^. gbRAM)
+    msb = ramLookup' (gb ^. gbCPU . cpuSP + 1) (gb ^. gbRAM)
 
 retZ :: Gameboy -> Gameboy
 retZ gb =
   if gb ^. gbCPU . cpuFlagZ
     then ret gb
-    else gb & gbCPU . cpuPC +~ 1
+    else gb
 
 retNZ :: Gameboy -> Gameboy
 retNZ gb =
   if not (gb ^. gbCPU . cpuFlagZ)
     then ret gb
-    else gb & gbCPU . cpuPC +~ 1
+    else gb
 
 retC :: Gameboy -> Gameboy
 retC gb =
   if gb ^. gbCPU . cpuFlagC
     then ret gb
-    else gb & gbCPU . cpuPC +~ 1
+    else gb
 
 retNC :: Gameboy -> Gameboy
 retNC gb =
   if not (gb ^. gbCPU . cpuFlagC)
     then ret gb
-    else gb & gbCPU . cpuPC +~ 1
+    else gb
 
 pop :: Lens' CPU Word16 -> Gameboy -> Gameboy
 pop reg gb =
   gb & gbCPU . reg .~ mkWord16 msb lsb
     & gbCPU . cpuSP +~ 2
-    & gbCPU . cpuPC +~ 1
   where
-    lsb = ramLookup (gb ^. gbCPU . cpuSP) (gb ^. gbRAM)
-    msb = ramLookup (gb ^. gbCPU . cpuSP + 1) (gb ^. gbRAM)
+    lsb = ramLookup' (gb ^. gbCPU . cpuSP) (gb ^. gbRAM)
+    msb = ramLookup' (gb ^. gbCPU . cpuSP + 1) (gb ^. gbRAM)
 
 popBC :: Gameboy -> Gameboy
 popBC = pop cpuRegisterBC
@@ -1423,7 +1390,6 @@ push reg gb =
   gb & writeToRam (gb ^. gbCPU . cpuSP - 1) msb
     & writeToRam (gb ^. gbCPU . cpuSP - 2) lsb
     & gbCPU . cpuSP -~ 2
-    & gbCPU . cpuPC +~ 1
   where
     (msb, lsb) = splitWord16 $ gb ^. gbCPU . reg
 
@@ -1441,38 +1407,38 @@ pushAF = push cpuRegisterAF
 
 calla16 :: Gameboy -> Gameboy
 calla16 gb = 
-    gb & writeToRam (gb ^. gbCPU . cpuSP - 1) pcmsb
+    gb'' & writeToRam (gb ^. gbCPU . cpuSP - 1) pcmsb
       & writeToRam (gb ^. gbCPU . cpuSP - 2) pclsb
       & gbCPU . cpuSP -~ 2
       & gbCPU . cpuPC .~ mkWord16 targetmsb targetlsb
   where
     (pcmsb, pclsb) = splitWord16 $ gb ^. gbCPU . cpuPC
-    targetlsb = ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM)
-    targetmsb = ramLookup (gb ^. gbCPU . cpuPC + 2) (gb ^. gbRAM)
+    (gb', targetlsb) = pcLookup gb
+    (gb'', targetmsb) = pcLookup gb'
 
 callZa16 :: Gameboy -> Gameboy
 callZa16 gb =
   if gb ^. gbCPU . cpuFlagZ
     then calla16 gb
-    else gb & gbCPU . cpuPC +~ 3
+    else fst . pcLookup . fst . pcLookup $ gb
 
 callNZa16 :: Gameboy -> Gameboy
 callNZa16 gb =
   if not (gb ^. gbCPU . cpuFlagZ)
     then calla16 gb
-    else gb & gbCPU . cpuPC +~ 3
+    else fst . pcLookup . fst . pcLookup $ gb
 
 callCa16 :: Gameboy -> Gameboy
 callCa16 gb =
   if gb ^. gbCPU . cpuFlagC
     then calla16 gb
-    else gb & gbCPU . cpuPC +~ 3
+    else fst . pcLookup . fst . pcLookup $ gb
 
 callNCa16 :: Gameboy -> Gameboy
 callNCa16 gb =
   if not (gb ^. gbCPU . cpuFlagC)
     then calla16 gb
-    else gb & gbCPU . cpuPC +~ 3
+    else fst . pcLookup . fst . pcLookup $ gb
 
 rst :: Word8 -> Gameboy -> Gameboy
 rst lsb gb =
@@ -1508,44 +1474,34 @@ rst38 :: Gameboy -> Gameboy
 rst38 = rst 0x38
 
 ei :: Gameboy -> Gameboy
-ei gb =
-  gb & gbIME .~ True
-    & gbCPU . cpuPC +~ 1
+ei gb = gb & gbIME .~ True
 
 di :: Gameboy -> Gameboy
-di gb = 
-  gb & gbIME .~ False
-    & gbCPU . cpuPC +~ 1
+di gb = gb & gbIME .~ False
 
 reti :: Gameboy -> Gameboy
 reti = ret . ei
 
+-- Note: The pandocs classify ldhCA and ldhAC as 2-Byte-instructions - however it is not at all clear where the read of the 2nd byte should occur
+--       This being two byte is either a bug in the cpu or a mistake in the pandocs - currently going for the latter
 ldhCA :: Gameboy -> Gameboy
-ldhCA gb =
-  gb & writeToRam (mkWord16 0xFF lsb) (gb ^. gbCPU . cpuRegisterA)
-    & gbCPU . cpuPC +~ 2
+ldhCA gb = gb & writeToRam (mkWord16 0xFF lsb) (gb ^. gbCPU . cpuRegisterA)
   where
     lsb = gb ^. gbCPU . cpuRegisterC
 
 ldhAC :: Gameboy -> Gameboy
-ldhAC gb =
-  gb & gbCPU . cpuRegisterA .~ newVal
-    & gbCPU . cpuPC +~ 2
+ldhAC gb = gb & gbCPU . cpuRegisterA .~ newVal
   where
-    newVal = ramLookup (mkWord16 0xFF lsb) (gb ^. gbRAM)
+    newVal = ramLookup' (mkWord16 0xFF lsb) (gb ^. gbRAM)
     lsb = gb ^. gbCPU . cpuRegisterC
 
 ldha8A :: Gameboy -> Gameboy
-ldha8A gb =
-  gb & writeToRam (mkWord16 0xFF lsb) (gb ^. gbCPU . cpuRegisterA)
-    & gbCPU . cpuPC +~ 2
+ldha8A gb = gb' & writeToRam (mkWord16 0xFF lsb) (gb ^. gbCPU . cpuRegisterA)
   where
-    lsb = ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM)
+    (gb', lsb) = pcLookup gb
 
 ldhAa8 :: Gameboy -> Gameboy
-ldhAa8 gb =
-  gb & gbCPU . cpuRegisterA .~ newVal
-    & gbCPU . cpuPC +~ 2
+ldhAa8 gb = gb' & gbCPU . cpuRegisterA .~ newVal
   where
-    newVal = ramLookup (mkWord16 0xFF lsb) (gb ^. gbRAM)
-    lsb = ramLookup (gb ^. gbCPU . cpuPC + 1) (gb ^. gbRAM)
+    newVal = ramLookup' (mkWord16 0xFF lsb) (gb ^. gbRAM)
+    (gb', lsb) = pcLookup gb
