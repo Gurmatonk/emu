@@ -25,7 +25,9 @@ source-repository head
 
 library
   exposed-modules:
-      Lib
+      CB
+      CPU
+      Gameboy
   other-modules:
       Paths_emu
   hs-source-dirs:
