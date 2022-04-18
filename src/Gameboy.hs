@@ -14,14 +14,15 @@ import Data.Text
 import Data.Word (Word8, Word16)
 import Data.Tuple (swap)
 
+import MCU (MCU, addressLookup, addressWrite, initMcu)
+
 data Gameboy = Gameboy
   { _gbCPU :: CPU,
-    _gbRAM :: RAM,
+    _gbPPU :: PPU,
+    _gbMCU :: MCU,
     _gbIME :: Bool
   }
   deriving (Show)
-
-type RAM = Map Word16 Word8
 
 data CPU = CPU
   { _cpuRegisterA :: Word8,
@@ -37,8 +38,15 @@ data CPU = CPU
   }
   deriving (Show)
 
+data PPU = PPU
+  { _thing :: Bool,
+    _anotherThing :: Bool
+  }
+  deriving (Show)
+
 makeLenses ''Gameboy
 makeLenses ''CPU
+makeLenses ''PPU
 
 -- flipping single bits like it's 1989 :)
 bitwiseValue :: Word8 -> Lens' Word8 Bool
@@ -84,7 +92,8 @@ initGameboy :: Gameboy
 initGameboy =
   Gameboy
     { _gbCPU = initCpu,
-      _gbRAM = mempty,
+      _gbMCU = initMcu,
+      _gbPPU = initPpu,
       _gbIME = False
     }
 
@@ -103,6 +112,9 @@ initCpu =
       _cpuPC = 0x0100
     }
 
+initPpu :: PPU
+initPpu = undefined
+
 mkWord16 ::
   -- | HI
   Word8 ->
@@ -116,18 +128,6 @@ splitWord16 w = (fromIntegral ((w .&. 0xFF00) `shiftR` 8), fromIntegral (w .&. 0
 
 -- s -> (s, a) is actually State... consider!
 pcLookup :: Gameboy -> (Gameboy, Word8)
-pcLookup gb = (gb & gbCPU . cpuPC +~ 1, res)
+pcLookup gb = (gb & gbCPU. cpuPC +~ 1, res)
   where
-    res =
-      case M.lookup (gb ^. gbCPU . cpuPC) (gb ^. gbRAM) of
-        (Just v) -> v
-        Nothing -> 0xFF
-
-ramLookup' :: Word16 -> RAM -> Word8
-ramLookup' l ram =
-  case M.lookup l ram of
-    (Just v) -> v
-    Nothing -> 0xFF -- TODO: Check if good default
-
-writeToRam :: Word16 -> Word8 -> Gameboy -> Gameboy
-writeToRam k v gb = gb & gbRAM . at k ?~ v
+    res = addressLookup (gb ^. gbCPU . cpuPC) (gb ^. gbMCU)

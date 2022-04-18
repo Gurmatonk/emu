@@ -11,7 +11,9 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Tuple (swap)
 import Data.Word (Word8, Word16)
+
 import Gameboy
+import qualified MCU
 
 runInstruction :: Gameboy -> Gameboy
 runInstruction = uncurry execInstruction . swap . pcLookup
@@ -306,7 +308,7 @@ ldBL :: Gameboy -> Gameboy
 ldBL gb = gb & gbCPU . cpuRegisterB .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldBHL :: Gameboy -> Gameboy
-ldBHL gb = gb & gbCPU . cpuRegisterB .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+ldBHL gb = gb & gbCPU . cpuRegisterB .~ MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU)
 
 ldCA :: Gameboy -> Gameboy
 ldCA gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterA)
@@ -330,7 +332,7 @@ ldCL :: Gameboy -> Gameboy
 ldCL gb = gb & gbCPU . cpuRegisterC .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldCHL :: Gameboy -> Gameboy
-ldCHL gb = gb & gbCPU . cpuRegisterC .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+ldCHL gb = gb & gbCPU . cpuRegisterC .~ MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU)
 
 ldDA :: Gameboy -> Gameboy
 ldDA gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterA)
@@ -354,7 +356,7 @@ ldDL :: Gameboy -> Gameboy
 ldDL gb = gb & gbCPU . cpuRegisterD .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldDHL :: Gameboy -> Gameboy
-ldDHL gb = gb & gbCPU . cpuRegisterD .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+ldDHL gb = gb & gbCPU . cpuRegisterD .~ MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU)
 
 ldEA :: Gameboy -> Gameboy
 ldEA gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterA)
@@ -378,7 +380,7 @@ ldEL :: Gameboy -> Gameboy
 ldEL gb = gb & gbCPU . cpuRegisterE .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldEHL :: Gameboy -> Gameboy
-ldEHL gb = gb & gbCPU . cpuRegisterE .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+ldEHL gb = gb & gbCPU . cpuRegisterE .~ MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU)
 
 ldHA :: Gameboy -> Gameboy
 ldHA gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterA)
@@ -402,7 +404,7 @@ ldHL :: Gameboy -> Gameboy
 ldHL gb = gb & gbCPU . cpuRegisterH .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldHHL :: Gameboy -> Gameboy
-ldHHL gb = gb & gbCPU . cpuRegisterH .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+ldHHL gb = gb & gbCPU . cpuRegisterH .~ MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU)
 
 ldLA :: Gameboy -> Gameboy
 ldLA gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterA)
@@ -426,28 +428,28 @@ ldLL :: Gameboy -> Gameboy
 ldLL gb = gb & gbCPU . cpuRegisterL .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldLHL :: Gameboy -> Gameboy
-ldLHL gb = gb & gbCPU . cpuRegisterL .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+ldLHL gb = gb & gbCPU . cpuRegisterL .~ MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU)
 
 ldHLA :: Gameboy -> Gameboy
-ldHLA gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterA) gb
+ldHLA gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterA) (gb ^. gbMCU)
 
 ldHLB :: Gameboy -> Gameboy
-ldHLB gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterB) gb
+ldHLB gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterB) (gb ^. gbMCU)
 
 ldHLC :: Gameboy -> Gameboy
-ldHLC gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterC) gb
+ldHLC gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterC) (gb ^. gbMCU)
 
 ldHLD :: Gameboy -> Gameboy
-ldHLD gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterD) gb
+ldHLD gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterD) (gb ^. gbMCU)
 
 ldHLE :: Gameboy -> Gameboy
-ldHLE gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterE) gb
+ldHLE gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterE) (gb ^. gbMCU)
 
 ldHLH :: Gameboy -> Gameboy
-ldHLH gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterH) gb
+ldHLH gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterH) (gb ^. gbMCU)
 
 ldHLL :: Gameboy -> Gameboy
-ldHLL gb = writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterL) gb
+ldHLL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterL) (gb ^. gbMCU)
 
 ldAA :: Gameboy -> Gameboy
 ldAA gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterA)
@@ -471,38 +473,38 @@ ldAL :: Gameboy -> Gameboy
 ldAL gb = gb & gbCPU . cpuRegisterA .~ (gb ^. gbCPU . cpuRegisterL)
 
 ldAHL :: Gameboy -> Gameboy
-ldAHL gb = gb & gbCPU . cpuRegisterA .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+ldAHL gb = gb & gbCPU . cpuRegisterA .~ MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU)
 
 ldABC :: Gameboy -> Gameboy
-ldABC gb = gb & gbCPU . cpuRegisterA .~ ramLookup' (gb ^. gbCPU . cpuRegisterBC) (gb ^. gbRAM)
+ldABC gb = gb & gbCPU . cpuRegisterA .~ MCU.addressLookup (gb ^. gbCPU . cpuRegisterBC) (gb ^. gbMCU)
 
 ldADE :: Gameboy -> Gameboy
-ldADE gb = gb & gbCPU . cpuRegisterA .~ ramLookup' (gb ^. gbCPU . cpuRegisterDE) (gb ^. gbRAM)
+ldADE gb = gb & gbCPU . cpuRegisterA .~ MCU.addressLookup (gb ^. gbCPU . cpuRegisterDE) (gb ^. gbMCU)
 
 ldBCA :: Gameboy -> Gameboy
-ldBCA gb = writeToRam (gb ^. gbCPU . cpuRegisterBC) (gb ^. gbCPU . cpuRegisterA) gb
+ldBCA gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterBC) (gb ^. gbCPU . cpuRegisterA) (gb ^. gbMCU)
 
 ldDEA :: Gameboy -> Gameboy
-ldDEA gb = writeToRam (gb ^. gbCPU . cpuRegisterDE) (gb ^. gbCPU . cpuRegisterA) gb
+ldDEA gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterDE) (gb ^. gbCPU . cpuRegisterA) (gb ^. gbMCU)
 
 ldHLplusA :: Gameboy -> Gameboy
 ldHLplusA gb =
-  writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterA) gb
+  gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterA) (gb ^. gbMCU)
     & gbCPU . cpuRegisterHL +~ 1
 
 ldHLminusA :: Gameboy -> Gameboy
 ldHLminusA gb =
-  writeToRam (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterA) gb
+  gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbCPU . cpuRegisterA) (gb ^. gbMCU)
     & gbCPU . cpuRegisterHL -~ 1
 
 ldAHLplus :: Gameboy -> Gameboy
 ldAHLplus gb =
-  gb & gbCPU . cpuRegisterA .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+  gb & gbCPU . cpuRegisterA .~ MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU)
     & gbCPU . cpuRegisterHL +~ 1
 
 ldAHLminus :: Gameboy -> Gameboy
 ldAHLminus gb =
-  gb & gbCPU . cpuRegisterA .~ ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+  gb & gbCPU . cpuRegisterA .~ MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU)
     & gbCPU . cpuRegisterHL -~ 1
 
 ldd8 :: Lens' CPU Word8 -> Gameboy -> Gameboy
@@ -532,7 +534,7 @@ ldAd8 :: Gameboy -> Gameboy
 ldAd8 = ldd8 cpuRegisterA
 
 ldHLd8 :: Gameboy -> Gameboy
-ldHLd8 gb = gb' & writeToRam (gb ^. gbCPU . cpuRegisterHL) d8
+ldHLd8 gb = gb' & gbMCU .~ MCU.addressWrite (gb' ^. gbCPU . cpuRegisterHL) d8 (gb' ^. gbMCU)
   where
     (gb', d8) = pcLookup gb
 
@@ -556,21 +558,21 @@ ldSPd16 = ldd16 cpuSP
 
 lda16SP :: Gameboy -> Gameboy
 lda16SP gb =
-  gb'' & writeToRam (mkWord16 msb lsb) splsb
-    & writeToRam (mkWord16 msb lsb + 1) spmsb
+  gb'' & gbMCU .~ MCU.addressWrite (mkWord16 msb lsb) splsb (gb'' ^. gbMCU)
+    & gbMCU .~ MCU.addressWrite (mkWord16 msb lsb + 1) spmsb (gb'' ^. gbMCU)
   where
     (spmsb, splsb) = splitWord16 (gb ^. gbCPU . cpuSP)
     (gb', lsb) = pcLookup gb
     (gb'', msb) = pcLookup gb'
 
 lda16A :: Gameboy -> Gameboy
-lda16A gb = gb'' & writeToRam (mkWord16 msb lsb) (gb ^. gbCPU . cpuRegisterA)
+lda16A gb = gb'' & gbMCU .~ MCU.addressWrite (mkWord16 msb lsb) (gb ^. gbCPU . cpuRegisterA) (gb'' ^. gbMCU)
   where
     (gb', lsb) = pcLookup gb
     (gb'', msb) = pcLookup gb'
 
 ldAa16 :: Gameboy -> Gameboy
-ldAa16 gb = gb'' & gbCPU . cpuRegisterA .~ ramLookup' (mkWord16 msb lsb) (gb ^. gbRAM)
+ldAa16 gb = gb'' & gbCPU . cpuRegisterA .~ MCU.addressLookup (mkWord16 msb lsb) (gb'' ^. gbMCU)
   where
     (gb', lsb) = pcLookup gb
     (gb'', msb) = pcLookup gb'
@@ -678,12 +680,12 @@ incA = inc cpuRegisterA
 
 incHL_ :: Gameboy -> Gameboy
 incHL_ gb =
-  gb & writeToRam (gb ^. address) (val + 1)
+  gb & gbMCU .~ MCU.addressWrite (gb ^. address) (val + 1) (gb ^. gbMCU)
     & gbCPU . cpuFlagH .~ (0x0F .&. val + 1 > 0x0F)
     & gbCPU . cpuFlagZ .~ (val + 1 == 0x00)
     & gbCPU . cpuFlagN .~ False
   where
-    val = ramLookup' (gb ^. address) (gb ^. gbRAM)
+    val = MCU.addressLookup (gb ^. address) (gb ^. gbMCU)
     address = gbCPU . cpuRegisterHL
 
 dec :: Lens' CPU Word8 -> Gameboy -> Gameboy
@@ -716,12 +718,12 @@ decA = dec cpuRegisterA
 
 decHL_ :: Gameboy -> Gameboy
 decHL_ gb =
-  gb & writeToRam (gb ^. address) (val - 1)
+  gb & gbMCU .~ MCU.addressWrite (gb ^. address) (val - 1) (gb ^. gbMCU)
     & gbCPU . cpuFlagH .~ (0x0F .&. val == 0x00)
     & gbCPU . cpuFlagZ .~ (val - 1 == 0x00)
     & gbCPU . cpuFlagN .~ True
   where
-    val = ramLookup' (gb ^. address) (gb ^. gbRAM)
+    val = MCU.addressLookup (gb ^. address) (gb ^. gbMCU)
     address = gbCPU . cpuRegisterHL
 
 addHL :: Lens' CPU Word16 -> Gameboy -> Gameboy
@@ -816,7 +818,7 @@ addAL :: Gameboy -> Gameboy
 addAL = addA cpuRegisterL
 
 addAHL :: Gameboy -> Gameboy
-addAHL gb = addA (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
+addAHL gb = addA (cpuRegisterHL . to (`MCU.addressLookup` (gb ^. gbMCU))) gb
 
 addAA :: Gameboy -> Gameboy
 addAA = addA cpuRegisterA
@@ -863,7 +865,7 @@ adcAL :: Gameboy -> Gameboy
 adcAL = adcA cpuRegisterL
 
 adcAHL :: Gameboy -> Gameboy
-adcAHL gb = adcA (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
+adcAHL gb = adcA (cpuRegisterHL . to (`MCU.addressLookup` (gb ^. gbMCU))) gb
 
 adcAA :: Gameboy -> Gameboy
 adcAA = adcA cpuRegisterA
@@ -904,7 +906,7 @@ subL :: Gameboy -> Gameboy
 subL = sub cpuRegisterL
 
 subHL :: Gameboy -> Gameboy
-subHL gb = sub (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
+subHL gb = sub (cpuRegisterHL . to (`MCU.addressLookup` (gb ^. gbMCU))) gb
 
 subA :: Gameboy -> Gameboy
 subA = sub cpuRegisterA
@@ -945,7 +947,7 @@ sbcL :: Gameboy -> Gameboy
 sbcL = sbc cpuRegisterL
 
 sbcHL :: Gameboy -> Gameboy
-sbcHL gb = sbc (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
+sbcHL gb = sbc (cpuRegisterHL . to (`MCU.addressLookup` (gb ^. gbMCU))) gb
 
 sbcA :: Gameboy -> Gameboy
 sbcA = sbc cpuRegisterA
@@ -986,7 +988,7 @@ andL :: Gameboy -> Gameboy
 andL = aAnd cpuRegisterL
 
 andHL :: Gameboy -> Gameboy
-andHL gb = aAnd (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
+andHL gb = aAnd (cpuRegisterHL . to (`MCU.addressLookup` (gb ^. gbMCU))) gb
 
 andA :: Gameboy -> Gameboy
 andA = aAnd cpuRegisterA
@@ -1026,7 +1028,7 @@ xorL :: Gameboy -> Gameboy
 xorL = aXor cpuRegisterL
 
 xorHL :: Gameboy -> Gameboy
-xorHL gb = aXor (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
+xorHL gb = aXor (cpuRegisterHL . to (`MCU.addressLookup` (gb ^. gbMCU))) gb
 
 xorA :: Gameboy -> Gameboy
 xorA = aXor cpuRegisterA
@@ -1066,7 +1068,7 @@ orL :: Gameboy -> Gameboy
 orL = aor cpuRegisterL
 
 orHL :: Gameboy -> Gameboy
-orHL gb = aor (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
+orHL gb = aor (cpuRegisterHL . to (`MCU.addressLookup` (gb ^. gbMCU))) gb
 
 orA :: Gameboy -> Gameboy
 orA = aor cpuRegisterA
@@ -1106,7 +1108,7 @@ cpL :: Gameboy -> Gameboy
 cpL = acp cpuRegisterL
 
 cpHL :: Gameboy -> Gameboy
-cpHL gb = acp (cpuRegisterHL . to (`ramLookup'` (gb ^. gbRAM))) gb
+cpHL gb = acp (cpuRegisterHL . to (`MCU.addressLookup` (gb ^. gbMCU))) gb
 
 cpA :: Gameboy -> Gameboy
 cpA = acp cpuRegisterA
@@ -1207,8 +1209,8 @@ ret gb =
   gb & gbCPU . cpuPC .~ mkWord16 msb lsb
     & gbCPU . cpuSP +~ 2
   where
-    lsb = ramLookup' (gb ^. gbCPU . cpuSP) (gb ^. gbRAM)
-    msb = ramLookup' (gb ^. gbCPU . cpuSP + 1) (gb ^. gbRAM)
+    lsb = MCU.addressLookup (gb ^. gbCPU . cpuSP) (gb ^. gbMCU)
+    msb = MCU.addressLookup (gb ^. gbCPU . cpuSP + 1) (gb ^. gbMCU)
 
 retZ :: Gameboy -> Gameboy
 retZ gb =
@@ -1239,8 +1241,8 @@ pop reg gb =
   gb & gbCPU . reg .~ mkWord16 msb lsb
     & gbCPU . cpuSP +~ 2
   where
-    lsb = ramLookup' (gb ^. gbCPU . cpuSP) (gb ^. gbRAM)
-    msb = ramLookup' (gb ^. gbCPU . cpuSP + 1) (gb ^. gbRAM)
+    lsb = MCU.addressLookup (gb ^. gbCPU . cpuSP) (gb ^. gbMCU)
+    msb = MCU.addressLookup (gb ^. gbCPU . cpuSP + 1) (gb ^. gbMCU)
 
 popBC :: Gameboy -> Gameboy
 popBC = pop cpuRegisterBC
@@ -1256,8 +1258,8 @@ popAF = pop cpuRegisterAF
 
 push :: Lens' CPU Word16 -> Gameboy -> Gameboy
 push reg gb =
-  gb & writeToRam (gb ^. gbCPU . cpuSP - 1) msb
-    & writeToRam (gb ^. gbCPU . cpuSP - 2) lsb
+  gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuSP - 1) msb (gb ^. gbMCU)
+    & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuSP - 2) lsb (gb ^. gbMCU)
     & gbCPU . cpuSP -~ 2
   where
     (msb, lsb) = splitWord16 $ gb ^. gbCPU . reg
@@ -1276,8 +1278,8 @@ pushAF = push cpuRegisterAF
 
 calla16 :: Gameboy -> Gameboy
 calla16 gb = 
-    gb'' & writeToRam (gb ^. gbCPU . cpuSP - 1) pcmsb
-      & writeToRam (gb ^. gbCPU . cpuSP - 2) pclsb
+    gb'' & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuSP - 1) pcmsb (gb'' ^. gbMCU)
+      & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuSP - 2) pclsb (gb'' ^. gbMCU)
       & gbCPU . cpuSP -~ 2
       & gbCPU . cpuPC .~ mkWord16 targetmsb targetlsb
   where
@@ -1311,8 +1313,8 @@ callNCa16 gb =
 
 rst :: Word8 -> Gameboy -> Gameboy
 rst lsb gb =
-  gb & writeToRam (gb ^. gbCPU . cpuSP - 1) pcmsb
-    & writeToRam (gb ^. gbCPU . cpuSP - 2) pclsb
+  gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuSP - 1) pcmsb (gb ^. gbMCU)
+    & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuSP - 2) pclsb (gb ^. gbMCU)
     & gbCPU . cpuSP -~ 2
     & gbCPU . cpuPC .~ mkWord16 0x00 lsb
   where
@@ -1354,23 +1356,23 @@ reti = ret . ei
 -- Note: The pandocs classify ldhCA and ldhAC as 2-Byte-instructions - however it is not at all clear where the read of the 2nd byte should occur
 --       This being two byte is either a bug in the cpu or a mistake in the pandocs - currently going for the latter
 ldhCA :: Gameboy -> Gameboy
-ldhCA gb = gb & writeToRam (mkWord16 0xFF lsb) (gb ^. gbCPU . cpuRegisterA)
+ldhCA gb = gb & gbMCU .~ MCU.addressWrite (mkWord16 0xFF lsb) (gb ^. gbCPU . cpuRegisterA) (gb ^. gbMCU)
   where
     lsb = gb ^. gbCPU . cpuRegisterC
 
 ldhAC :: Gameboy -> Gameboy
 ldhAC gb = gb & gbCPU . cpuRegisterA .~ newVal
   where
-    newVal = ramLookup' (mkWord16 0xFF lsb) (gb ^. gbRAM)
+    newVal = MCU.addressLookup (mkWord16 0xFF lsb) (gb ^. gbMCU)
     lsb = gb ^. gbCPU . cpuRegisterC
 
 ldha8A :: Gameboy -> Gameboy
-ldha8A gb = gb' & writeToRam (mkWord16 0xFF lsb) (gb ^. gbCPU . cpuRegisterA)
+ldha8A gb = gb' & gbMCU .~ MCU.addressWrite (mkWord16 0xFF lsb) (gb' ^. gbCPU . cpuRegisterA) (gb' ^. gbMCU)
   where
     (gb', lsb) = pcLookup gb
 
 ldhAa8 :: Gameboy -> Gameboy
 ldhAa8 gb = gb' & gbCPU . cpuRegisterA .~ newVal
   where
-    newVal = ramLookup' (mkWord16 0xFF lsb) (gb ^. gbRAM)
+    newVal = MCU.addressLookup (mkWord16 0xFF lsb) (gb' ^. gbMCU)
     (gb', lsb) = pcLookup gb

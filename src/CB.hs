@@ -7,6 +7,7 @@ import Data.Bits (bit, rotateL, rotateR)
 import Data.Word (Word8)
 import Data.Tuple (swap)
 import Gameboy
+import qualified MCU
 
 cb :: Gameboy -> Gameboy
 cb = uncurry execcb . swap . pcLookup
@@ -193,13 +194,13 @@ rlcL = rlc cpuRegisterL
 rlcHL :: Gameboy -> Gameboy
 rlcHL gb =
   gb & gbCPU . cpuFlagC .~ old7th
-    & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+    & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
     & gbCPU . cpuFlagZ .~ (newVal == 0x00)
     & gbCPU . cpuFlagN .~ False
     & gbCPU . cpuFlagH .~ False
   where
     newVal = oldVal `rotateL` 1
-    oldVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+    oldVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU)
     old7th = oldVal ^. bitwiseValue (bit 7)
 
 rlcA :: Gameboy -> Gameboy
@@ -236,13 +237,13 @@ rrcL = rrc cpuRegisterL
 rrcHL :: Gameboy -> Gameboy
 rrcHL gb =
   gb & gbCPU . cpuFlagC .~ old0th
-    & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+    & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
     & gbCPU . cpuFlagZ .~ (newVal == 0x00)
     & gbCPU . cpuFlagN .~ False
     & gbCPU . cpuFlagH .~ False
   where
     newVal = oldVal `rotateR` 1
-    oldVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM)
+    oldVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU)
     old0th = oldVal ^. bitwiseValue (bit 0)
 
 rrcA :: Gameboy -> Gameboy
@@ -420,44 +421,44 @@ res7A :: Gameboy -> Gameboy
 res7A = res 7 cpuRegisterA
 
 res0HL :: Gameboy -> Gameboy
-res0HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+res0HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 0) .~ False
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 0) .~ False
 
 res1HL :: Gameboy -> Gameboy
-res1HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+res1HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 1) .~ False
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 1) .~ False
 
 res2HL :: Gameboy -> Gameboy
-res2HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+res2HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 2) .~ False
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 2) .~ False
 
 res3HL :: Gameboy -> Gameboy
-res3HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+res3HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 3) .~ False
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 3) .~ False
 
 res4HL :: Gameboy -> Gameboy
-res4HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+res4HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 4) .~ False
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 4) .~ False
 
 res5HL :: Gameboy -> Gameboy
-res5HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+res5HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 5) .~ False
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 5) .~ False
 
 res6HL :: Gameboy -> Gameboy
-res6HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+res6HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 6) .~ False
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 6) .~ False
 
 res7HL :: Gameboy -> Gameboy
-res7HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+res7HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 7) .~ False
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 7) .~ False
 
 set :: Int -> Lens' CPU Word8 -> Gameboy -> Gameboy
 set b reg = gbCPU . reg . bitwiseValue (bit b) .~ True
@@ -631,41 +632,41 @@ set7A :: Gameboy -> Gameboy
 set7A = set 7 cpuRegisterA
 
 set0HL :: Gameboy -> Gameboy
-set0HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+set0HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 0) .~ True
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 0) .~ True
 
 set1HL :: Gameboy -> Gameboy
-set1HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+set1HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 1) .~ True
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 1) .~ True
 
 set2HL :: Gameboy -> Gameboy
-set2HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+set2HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 2) .~ True
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 2) .~ True
 
 set3HL :: Gameboy -> Gameboy
-set3HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+set3HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 3) .~ True
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 3) .~ True
 
 set4HL :: Gameboy -> Gameboy
-set4HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+set4HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 4) .~ True
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 4) .~ True
 
 set5HL :: Gameboy -> Gameboy
-set5HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+set5HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 5) .~ True
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 5) .~ True
 
 set6HL :: Gameboy -> Gameboy
-set6HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+set6HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 6) .~ True
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 6) .~ True
 
 set7HL :: Gameboy -> Gameboy
-set7HL gb = gb & writeToRam (gb ^. gbCPU . cpuRegisterHL) newVal
+set7HL gb = gb & gbMCU .~ MCU.addressWrite (gb ^. gbCPU . cpuRegisterHL) newVal (gb ^. gbMCU)
   where
-    newVal = ramLookup' (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbRAM) & bitwiseValue (bit 7) .~ True
+    newVal = MCU.addressLookup (gb ^. gbCPU . cpuRegisterHL) (gb ^. gbMCU) & bitwiseValue (bit 7) .~ True
