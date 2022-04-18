@@ -2,6 +2,7 @@
 
 module CPU where
 
+import CB (cb)
 import Control.Lens
 import Data.Bits (bit, complement, rotateL, rotateR, setBit, shiftL, shiftR, xor, (.&.), (.|.))
 import Data.Bool (bool)
@@ -264,18 +265,6 @@ execInstruction opcode =
     0xFE -> cpd8
     0xFF -> rst38
     _ -> undefined
-
-cb :: Gameboy -> Gameboy
-cb = uncurry execcb . swap . pcLookup
-
-execcb :: Word8 -> Gameboy -> Gameboy
-execcb opcode =
-  case opcode of
-    0x80 -> res0B
-    _ -> undefined
-
-res0B :: Gameboy -> Gameboy
-res0B = gbCPU . cpuRegisterB . bitwiseValue (bit 0) .~ False
 
 nop :: Gameboy -> Gameboy
 nop = id
@@ -613,6 +602,8 @@ decHL gb = gb & gbCPU . cpuRegisterHL -~ 1
 decSP :: Gameboy -> Gameboy
 decSP gb = gb & gbCPU . cpuSP -~ 1
 
+-- NOTE: The rotation operations from the 1-Byte instruction set differ from those in CB in that - according to the docs -
+--       CB rotations CAN set the Z flag, while these here by definition just reset it.
 rlA :: Gameboy -> Gameboy
 rlA gb =
   gb & gbCPU . cpuRegisterA . bitwiseValue (bit 7) .~ new7th -- swap 7th bit with carry so we can ignore carry when rotating
@@ -637,8 +628,6 @@ rrA gb =
     old0th = gb ^. gbCPU . cpuRegisterA . bitwiseValue (bit 0)
     new0th = gb ^. gbCPU . cpuFlagC
 
--- NOTE: From what I currently understand, RxCA operations only SET the carry to the bit carried over, but DO NOT rotate through it,
---       i.e. the old carry value is overwritten and gone
 rlcA :: Gameboy -> Gameboy
 rlcA gb =
   gb & gbCPU . cpuFlagC .~ old7th
