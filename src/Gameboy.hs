@@ -14,7 +14,8 @@ import Data.Text
 import Data.Word (Word8, Word16)
 import Data.Tuple (swap)
 
-import MCU (MCU, addressLookup, addressWrite, initMcu)
+import MCU (MCU)
+import qualified MCU
 
 data Gameboy = Gameboy
   { _gbCPU :: CPU,
@@ -92,7 +93,7 @@ initGameboy :: Gameboy
 initGameboy =
   Gameboy
     { _gbCPU = initCpu,
-      _gbMCU = initMcu,
+      _gbMCU = MCU.initMcu,
       _gbPPU = initPpu,
       _gbIME = False
     }
@@ -126,8 +127,14 @@ mkWord16 hi lo = ((fromIntegral hi :: Word16) `shiftL` 8) + fromIntegral lo
 splitWord16 :: Word16 -> (Word8, Word8)
 splitWord16 w = (fromIntegral ((w .&. 0xFF00) `shiftR` 8), fromIntegral (w .&. 0x00FF))
 
+mcuLookup :: Word16 -> Gameboy -> Word8
+mcuLookup w gb = MCU.addressLookup w (gb ^. gbMCU)
+
+mcuWrite :: Word16 -> Word8 -> Gameboy -> Gameboy
+mcuWrite a w gb = gb & gbMCU .~ MCU.addressWrite a w (gb ^. gbMCU)
+
 -- s -> (s, a) is actually State... consider!
 pcLookup :: Gameboy -> (Gameboy, Word8)
 pcLookup gb = (gb & gbCPU. cpuPC +~ 1, res)
   where
-    res = addressLookup (gb ^. gbCPU . cpuPC) (gb ^. gbMCU)
+    res = mcuLookup (gb ^. gbCPU . cpuPC) gb
