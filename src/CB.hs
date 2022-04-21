@@ -7,6 +7,7 @@ import Data.Bits (bit, rotateL, rotateR)
 import Data.Word (Word8)
 import Data.Tuple (swap)
 import Gameboy
+import Utils (bitwiseValue)
 
 cb :: Gameboy -> Gameboy
 cb = uncurry execcb . swap . pcLookup

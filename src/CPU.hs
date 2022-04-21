@@ -2,17 +2,16 @@
 
 module CPU where
 
-import CB (cb)
 import Control.Lens
-import Data.Bits (bit, complement, rotateL, rotateR, setBit, shiftL, shiftR, xor, (.&.), (.|.))
+import Data.Bits (bit, complement, rotateL, rotateR, xor, (.&.), (.|.))
 import Data.Bool (bool)
 import Data.Int (Int8)
-import Data.Map (Map)
-import qualified Data.Map as M
 import Data.Tuple (swap)
 import Data.Word (Word8, Word16)
 
+import CB (cb)
 import Gameboy
+import Utils (bitwiseValue, mkWord16, splitWord16)
 
 runInstruction :: Gameboy -> Gameboy
 runInstruction = uncurry execInstruction . swap . pcLookup

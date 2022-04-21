@@ -5,17 +5,16 @@
 module Gameboy where
 
 import Control.Lens
-import Data.Bits (bit, complement, shiftL, shiftR, (.&.), (.|.))
-import Data.Bool (bool)
-import Data.Int (Int8)
-import Data.Map (Map)
-import qualified Data.Map as M
-import Data.Text
+import Data.Bits (bit)
 import Data.Word (Word8, Word16)
-import Data.Tuple (swap)
 
 import MCU (MCU)
 import qualified MCU
+
+import PPU (PPU)
+import qualified PPU
+
+import Utils (bitwiseValue, mkWord16, splitWord16)
 
 data Gameboy = Gameboy
   { _gbCPU :: CPU,
@@ -39,22 +38,9 @@ data CPU = CPU
   }
   deriving (Show)
 
-data PPU = PPU
-  { _thing :: Bool,
-    _anotherThing :: Bool
-  }
-  deriving (Show)
 
 makeLenses ''Gameboy
 makeLenses ''CPU
-makeLenses ''PPU
-
--- flipping single bits like it's 1989 :)
-bitwiseValue :: Word8 -> Lens' Word8 Bool
-bitwiseValue mask = lens getter setter
-  where
-    getter w = (mask .&. w) > 0
-    setter w = bool (w .&. complement mask) (w .|. mask)
 
 cpuFlagZ :: Lens' CPU Bool
 cpuFlagZ = cpuRegisterF . bitwiseValue (bit 7)
@@ -94,7 +80,7 @@ initGameboy =
   Gameboy
     { _gbCPU = initCpu,
       _gbMCU = MCU.initMcu,
-      _gbPPU = initPpu,
+      _gbPPU = PPU.initPpu,
       _gbIME = False
     }
 
@@ -112,20 +98,6 @@ initCpu =
       _cpuSP = 0xFFFE,
       _cpuPC = 0x0100
     }
-
-initPpu :: PPU
-initPpu = undefined
-
-mkWord16 ::
-  -- | HI
-  Word8 ->
-  -- | LO
-  Word8 ->
-  Word16
-mkWord16 hi lo = ((fromIntegral hi :: Word16) `shiftL` 8) + fromIntegral lo
-
-splitWord16 :: Word16 -> (Word8, Word8)
-splitWord16 w = (fromIntegral ((w .&. 0xFF00) `shiftR` 8), fromIntegral (w .&. 0x00FF))
 
 mcuLookup :: Word16 -> Gameboy -> Word8
 mcuLookup w gb = MCU.addressLookup w (gb ^. gbMCU)
