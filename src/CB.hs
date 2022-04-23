@@ -6,13 +6,15 @@ import Control.Lens hiding (set)
 import Data.Bits (bit, rotateL, rotateR)
 import Data.Word (Word8)
 import Data.Tuple (swap)
-import Gameboy
+
+import Types
+import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup)
 import Utils (bitwiseValue)
 
-cb :: Gameboy -> Gameboy
+cb :: CPU -> CPU
 cb = uncurry execcb . swap . pcLookup
 
-execcb :: Word8 -> Gameboy -> Gameboy
+execcb :: Word8 -> CPU -> CPU
 execcb opcode =
   case opcode of
     0x00 -> rlcB
@@ -163,510 +165,510 @@ execcb opcode =
 
 -- NOTE: From what I currently understand, RxCA operations only SET the carry to the bit carried over, but DO NOT rotate through it,
 --       i.e. the old carry value is overwritten and gone
-rlc :: Lens' CPU Word8 -> Gameboy -> Gameboy
-rlc reg gb =
-  gb & gbCPU . cpuFlagC .~ old7th
-    & gbCPU . reg %~ (`rotateL` 1)
-    & (\gb' -> gb' & gbCPU . cpuFlagZ .~ (gb' ^. gbCPU . reg == 0x00))
-    & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuFlagH .~ False
+rlc :: Lens' CPU Word8 -> CPU -> CPU
+rlc reg cpu =
+  cpu & cpuFlagC .~ old7th
+    & reg %~ (`rotateL` 1)
+    & (\cpu' -> cpu' & cpuFlagZ .~ (cpu' ^. reg == 0x00))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
   where
-    old7th = gb ^. gbCPU . reg . bitwiseValue (bit 7)
+    old7th = cpu ^. reg . bitwiseValue (bit 7)
 
-rlcB :: Gameboy -> Gameboy
+rlcB :: CPU -> CPU
 rlcB = rlc cpuRegisterB
 
-rlcC :: Gameboy -> Gameboy
+rlcC :: CPU -> CPU
 rlcC = rlc cpuRegisterC
 
-rlcD :: Gameboy -> Gameboy
+rlcD :: CPU -> CPU
 rlcD = rlc cpuRegisterD
 
-rlcE :: Gameboy -> Gameboy
+rlcE :: CPU -> CPU
 rlcE = rlc cpuRegisterE
 
-rlcH :: Gameboy -> Gameboy
+rlcH :: CPU -> CPU
 rlcH = rlc cpuRegisterH
 
-rlcL :: Gameboy -> Gameboy
+rlcL :: CPU -> CPU
 rlcL = rlc cpuRegisterL
 
-rlcHL :: Gameboy -> Gameboy
-rlcHL gb =
-  gb & gbCPU . cpuFlagC .~ old7th
-    & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
-    & gbCPU . cpuFlagZ .~ (newVal == 0x00)
-    & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuFlagH .~ False
+rlcHL :: CPU -> CPU
+rlcHL cpu =
+  cpu & cpuFlagC .~ old7th
+    & mcuWrite (cpu ^. cpuRegisterHL) newVal
+    & cpuFlagZ .~ (newVal == 0x00)
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
   where
     newVal = oldVal `rotateL` 1
-    oldVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb
+    oldVal = mcuLookup (cpu ^. cpuRegisterHL) cpu
     old7th = oldVal ^. bitwiseValue (bit 7)
 
-rlcA :: Gameboy -> Gameboy
+rlcA :: CPU -> CPU
 rlcA = rlc cpuRegisterA
 
-rrc :: Lens' CPU Word8 -> Gameboy -> Gameboy
-rrc reg gb =
-  gb & gbCPU . cpuFlagC .~ old0th
-    & gbCPU . reg %~ (`rotateR` 1)
-    & (\gb' -> gb' & gbCPU . cpuFlagZ .~ (gb' ^. gbCPU . reg == 0x00))
-    & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuFlagH .~ False
+rrc :: Lens' CPU Word8 -> CPU -> CPU
+rrc reg cpu =
+  cpu & cpuFlagC .~ old0th
+    & reg %~ (`rotateR` 1)
+    & (\cpu' -> cpu' & cpuFlagZ .~ (cpu' ^. reg == 0x00))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
   where
-    old0th = gb ^. gbCPU . reg . bitwiseValue (bit 0)
+    old0th = cpu ^. reg . bitwiseValue (bit 0)
 
-rrcB :: Gameboy -> Gameboy
+rrcB :: CPU -> CPU
 rrcB = rrc cpuRegisterB
 
-rrcC :: Gameboy -> Gameboy
+rrcC :: CPU -> CPU
 rrcC = rrc cpuRegisterC
 
-rrcD :: Gameboy -> Gameboy
+rrcD :: CPU -> CPU
 rrcD = rrc cpuRegisterD
 
-rrcE :: Gameboy -> Gameboy
+rrcE :: CPU -> CPU
 rrcE = rrc cpuRegisterE
 
-rrcH :: Gameboy -> Gameboy
+rrcH :: CPU -> CPU
 rrcH = rrc cpuRegisterH
 
-rrcL :: Gameboy -> Gameboy
+rrcL :: CPU -> CPU
 rrcL = rrc cpuRegisterL
 
-rrcHL :: Gameboy -> Gameboy
-rrcHL gb =
-  gb & gbCPU . cpuFlagC .~ old0th
-    & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
-    & gbCPU . cpuFlagZ .~ (newVal == 0x00)
-    & gbCPU . cpuFlagN .~ False
-    & gbCPU . cpuFlagH .~ False
+rrcHL :: CPU -> CPU
+rrcHL cpu =
+  cpu & cpuFlagC .~ old0th
+    & mcuWrite (cpu ^. cpuRegisterHL) newVal
+    & cpuFlagZ .~ (newVal == 0x00)
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
   where
     newVal = oldVal `rotateR` 1
-    oldVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb
+    oldVal = mcuLookup (cpu ^. cpuRegisterHL) cpu
     old0th = oldVal ^. bitwiseValue (bit 0)
 
-rrcA :: Gameboy -> Gameboy
+rrcA :: CPU -> CPU
 rrcA = rrc cpuRegisterA
 
-res :: Int -> Lens' CPU Word8 -> Gameboy -> Gameboy
-res b reg = gbCPU . reg . bitwiseValue (bit b) .~ False
+res :: Int -> Lens' CPU Word8 -> CPU -> CPU
+res b reg = reg . bitwiseValue (bit b) .~ False
 
-res0B :: Gameboy -> Gameboy
+res0B :: CPU -> CPU
 res0B = res 0 cpuRegisterB
 
-res1B :: Gameboy -> Gameboy
+res1B :: CPU -> CPU
 res1B = res 1 cpuRegisterB
 
-res2B :: Gameboy -> Gameboy
+res2B :: CPU -> CPU
 res2B = res 2 cpuRegisterB
 
-res3B :: Gameboy -> Gameboy
+res3B :: CPU -> CPU
 res3B = res 3 cpuRegisterB
 
-res4B :: Gameboy -> Gameboy
+res4B :: CPU -> CPU
 res4B = res 4 cpuRegisterB
 
-res5B :: Gameboy -> Gameboy
+res5B :: CPU -> CPU
 res5B = res 5 cpuRegisterB
 
-res6B :: Gameboy -> Gameboy
+res6B :: CPU -> CPU
 res6B = res 6 cpuRegisterB
 
-res7B :: Gameboy -> Gameboy
+res7B :: CPU -> CPU
 res7B = res 7 cpuRegisterB
 
-res0C :: Gameboy -> Gameboy
+res0C :: CPU -> CPU
 res0C = res 0 cpuRegisterC
 
-res1C :: Gameboy -> Gameboy
+res1C :: CPU -> CPU
 res1C = res 1 cpuRegisterC
 
-res2C :: Gameboy -> Gameboy
+res2C :: CPU -> CPU
 res2C = res 2 cpuRegisterC
 
-res3C :: Gameboy -> Gameboy
+res3C :: CPU -> CPU
 res3C = res 3 cpuRegisterC
 
-res4C :: Gameboy -> Gameboy
+res4C :: CPU -> CPU
 res4C = res 4 cpuRegisterC
 
-res5C :: Gameboy -> Gameboy
+res5C :: CPU -> CPU
 res5C = res 5 cpuRegisterC
 
-res6C :: Gameboy -> Gameboy
+res6C :: CPU -> CPU
 res6C = res 6 cpuRegisterC
 
-res7C :: Gameboy -> Gameboy
+res7C :: CPU -> CPU
 res7C = res 7 cpuRegisterC
 
-res0D :: Gameboy -> Gameboy
+res0D :: CPU -> CPU
 res0D = res 0 cpuRegisterD
 
-res1D :: Gameboy -> Gameboy
+res1D :: CPU -> CPU
 res1D = res 1 cpuRegisterD
 
-res2D :: Gameboy -> Gameboy
+res2D :: CPU -> CPU
 res2D = res 2 cpuRegisterD
 
-res3D :: Gameboy -> Gameboy
+res3D :: CPU -> CPU
 res3D = res 3 cpuRegisterD
 
-res4D :: Gameboy -> Gameboy
+res4D :: CPU -> CPU
 res4D = res 4 cpuRegisterD
 
-res5D :: Gameboy -> Gameboy
+res5D :: CPU -> CPU
 res5D = res 5 cpuRegisterD
 
-res6D :: Gameboy -> Gameboy
+res6D :: CPU -> CPU
 res6D = res 6 cpuRegisterD
 
-res7D :: Gameboy -> Gameboy
+res7D :: CPU -> CPU
 res7D = res 7 cpuRegisterD
 
-res0E :: Gameboy -> Gameboy
+res0E :: CPU -> CPU
 res0E = res 0 cpuRegisterE
 
-res1E :: Gameboy -> Gameboy
+res1E :: CPU -> CPU
 res1E = res 1 cpuRegisterE
 
-res2E :: Gameboy -> Gameboy
+res2E :: CPU -> CPU
 res2E = res 2 cpuRegisterE
 
-res3E :: Gameboy -> Gameboy
+res3E :: CPU -> CPU
 res3E = res 3 cpuRegisterE
 
-res4E :: Gameboy -> Gameboy
+res4E :: CPU -> CPU
 res4E = res 4 cpuRegisterE
 
-res5E :: Gameboy -> Gameboy
+res5E :: CPU -> CPU
 res5E = res 5 cpuRegisterE
 
-res6E :: Gameboy -> Gameboy
+res6E :: CPU -> CPU
 res6E = res 6 cpuRegisterE
 
-res7E :: Gameboy -> Gameboy
+res7E :: CPU -> CPU
 res7E = res 7 cpuRegisterE
 
-res0H :: Gameboy -> Gameboy
+res0H :: CPU -> CPU
 res0H = res 0 cpuRegisterH
 
-res1H :: Gameboy -> Gameboy
+res1H :: CPU -> CPU
 res1H = res 1 cpuRegisterH
 
-res2H :: Gameboy -> Gameboy
+res2H :: CPU -> CPU
 res2H = res 2 cpuRegisterH
 
-res3H :: Gameboy -> Gameboy
+res3H :: CPU -> CPU
 res3H = res 3 cpuRegisterH
 
-res4H :: Gameboy -> Gameboy
+res4H :: CPU -> CPU
 res4H = res 4 cpuRegisterH
 
-res5H :: Gameboy -> Gameboy
+res5H :: CPU -> CPU
 res5H = res 5 cpuRegisterH
 
-res6H :: Gameboy -> Gameboy
+res6H :: CPU -> CPU
 res6H = res 6 cpuRegisterH
 
-res7H :: Gameboy -> Gameboy
+res7H :: CPU -> CPU
 res7H = res 7 cpuRegisterH
 
-res0L :: Gameboy -> Gameboy
+res0L :: CPU -> CPU
 res0L = res 0 cpuRegisterL
 
-res1L :: Gameboy -> Gameboy
+res1L :: CPU -> CPU
 res1L = res 1 cpuRegisterL
 
-res2L :: Gameboy -> Gameboy
+res2L :: CPU -> CPU
 res2L = res 2 cpuRegisterL
 
-res3L :: Gameboy -> Gameboy
+res3L :: CPU -> CPU
 res3L = res 3 cpuRegisterL
 
-res4L :: Gameboy -> Gameboy
+res4L :: CPU -> CPU
 res4L = res 4 cpuRegisterL
 
-res5L :: Gameboy -> Gameboy
+res5L :: CPU -> CPU
 res5L = res 5 cpuRegisterL
 
-res6L :: Gameboy -> Gameboy
+res6L :: CPU -> CPU
 res6L = res 6 cpuRegisterL
 
-res7L :: Gameboy -> Gameboy
+res7L :: CPU -> CPU
 res7L = res 7 cpuRegisterL
 
-res0A :: Gameboy -> Gameboy
+res0A :: CPU -> CPU
 res0A = res 0 cpuRegisterA
 
-res1A :: Gameboy -> Gameboy
+res1A :: CPU -> CPU
 res1A = res 1 cpuRegisterA
 
-res2A :: Gameboy -> Gameboy
+res2A :: CPU -> CPU
 res2A = res 2 cpuRegisterA
 
-res3A :: Gameboy -> Gameboy
+res3A :: CPU -> CPU
 res3A = res 3 cpuRegisterA
 
-res4A :: Gameboy -> Gameboy
+res4A :: CPU -> CPU
 res4A = res 4 cpuRegisterA
 
-res5A :: Gameboy -> Gameboy
+res5A :: CPU -> CPU
 res5A = res 5 cpuRegisterA
 
-res6A :: Gameboy -> Gameboy
+res6A :: CPU -> CPU
 res6A = res 6 cpuRegisterA
 
-res7A :: Gameboy -> Gameboy
+res7A :: CPU -> CPU
 res7A = res 7 cpuRegisterA
 
-res0HL :: Gameboy -> Gameboy
-res0HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+res0HL :: CPU -> CPU
+res0HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 0) .~ False
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 0) .~ False
 
-res1HL :: Gameboy -> Gameboy
-res1HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+res1HL :: CPU -> CPU
+res1HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 1) .~ False
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 1) .~ False
 
-res2HL :: Gameboy -> Gameboy
-res2HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+res2HL :: CPU -> CPU
+res2HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 2) .~ False
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 2) .~ False
 
-res3HL :: Gameboy -> Gameboy
-res3HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+res3HL :: CPU -> CPU
+res3HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 3) .~ False
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 3) .~ False
 
-res4HL :: Gameboy -> Gameboy
-res4HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+res4HL :: CPU -> CPU
+res4HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 4) .~ False
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 4) .~ False
 
-res5HL :: Gameboy -> Gameboy
-res5HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+res5HL :: CPU -> CPU
+res5HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 5) .~ False
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 5) .~ False
 
-res6HL :: Gameboy -> Gameboy
-res6HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+res6HL :: CPU -> CPU
+res6HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 6) .~ False
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 6) .~ False
 
-res7HL :: Gameboy -> Gameboy
-res7HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+res7HL :: CPU -> CPU
+res7HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 7) .~ False
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 7) .~ False
 
-set :: Int -> Lens' CPU Word8 -> Gameboy -> Gameboy
-set b reg = gbCPU . reg . bitwiseValue (bit b) .~ True
+set :: Int -> Lens' CPU Word8 -> CPU -> CPU
+set b reg = reg . bitwiseValue (bit b) .~ True
 
-set0B :: Gameboy -> Gameboy
+set0B :: CPU -> CPU
 set0B = set 0 cpuRegisterB
 
-set1B :: Gameboy -> Gameboy
+set1B :: CPU -> CPU
 set1B = set 1 cpuRegisterB
 
-set2B :: Gameboy -> Gameboy
+set2B :: CPU -> CPU
 set2B = set 2 cpuRegisterB
 
-set3B :: Gameboy -> Gameboy
+set3B :: CPU -> CPU
 set3B = set 3 cpuRegisterB
 
-set4B :: Gameboy -> Gameboy
+set4B :: CPU -> CPU
 set4B = set 4 cpuRegisterB
 
-set5B :: Gameboy -> Gameboy
+set5B :: CPU -> CPU
 set5B = set 5 cpuRegisterB
 
-set6B :: Gameboy -> Gameboy
+set6B :: CPU -> CPU
 set6B = set 6 cpuRegisterB
 
-set7B :: Gameboy -> Gameboy
+set7B :: CPU -> CPU
 set7B = set 7 cpuRegisterB
 
-set0C :: Gameboy -> Gameboy
+set0C :: CPU -> CPU
 set0C = set 0 cpuRegisterC
 
-set1C :: Gameboy -> Gameboy
+set1C :: CPU -> CPU
 set1C = set 1 cpuRegisterC
 
-set2C :: Gameboy -> Gameboy
+set2C :: CPU -> CPU
 set2C = set 2 cpuRegisterC
 
-set3C :: Gameboy -> Gameboy
+set3C :: CPU -> CPU
 set3C = set 3 cpuRegisterC
 
-set4C :: Gameboy -> Gameboy
+set4C :: CPU -> CPU
 set4C = set 4 cpuRegisterC
 
-set5C :: Gameboy -> Gameboy
+set5C :: CPU -> CPU
 set5C = set 5 cpuRegisterC
 
-set6C :: Gameboy -> Gameboy
+set6C :: CPU -> CPU
 set6C = set 6 cpuRegisterC
 
-set7C :: Gameboy -> Gameboy
+set7C :: CPU -> CPU
 set7C = set 7 cpuRegisterC
 
-set0D :: Gameboy -> Gameboy
+set0D :: CPU -> CPU
 set0D = set 0 cpuRegisterD
 
-set1D :: Gameboy -> Gameboy
+set1D :: CPU -> CPU
 set1D = set 1 cpuRegisterD
 
-set2D :: Gameboy -> Gameboy
+set2D :: CPU -> CPU
 set2D = set 2 cpuRegisterD
 
-set3D :: Gameboy -> Gameboy
+set3D :: CPU -> CPU
 set3D = set 3 cpuRegisterD
 
-set4D :: Gameboy -> Gameboy
+set4D :: CPU -> CPU
 set4D = set 4 cpuRegisterD
 
-set5D :: Gameboy -> Gameboy
+set5D :: CPU -> CPU
 set5D = set 5 cpuRegisterD
 
-set6D :: Gameboy -> Gameboy
+set6D :: CPU -> CPU
 set6D = set 6 cpuRegisterD
 
-set7D :: Gameboy -> Gameboy
+set7D :: CPU -> CPU
 set7D = set 7 cpuRegisterD
 
-set0E :: Gameboy -> Gameboy
+set0E :: CPU -> CPU
 set0E = set 0 cpuRegisterE
 
-set1E :: Gameboy -> Gameboy
+set1E :: CPU -> CPU
 set1E = set 1 cpuRegisterE
 
-set2E :: Gameboy -> Gameboy
+set2E :: CPU -> CPU
 set2E = set 2 cpuRegisterE
 
-set3E :: Gameboy -> Gameboy
+set3E :: CPU -> CPU
 set3E = set 3 cpuRegisterE
 
-set4E :: Gameboy -> Gameboy
+set4E :: CPU -> CPU
 set4E = set 4 cpuRegisterE
 
-set5E :: Gameboy -> Gameboy
+set5E :: CPU -> CPU
 set5E = set 5 cpuRegisterE
 
-set6E :: Gameboy -> Gameboy
+set6E :: CPU -> CPU
 set6E = set 6 cpuRegisterE
 
-set7E :: Gameboy -> Gameboy
+set7E :: CPU -> CPU
 set7E = set 7 cpuRegisterE
 
-set0H :: Gameboy -> Gameboy
+set0H :: CPU -> CPU
 set0H = set 0 cpuRegisterH
 
-set1H :: Gameboy -> Gameboy
+set1H :: CPU -> CPU
 set1H = set 1 cpuRegisterH
 
-set2H :: Gameboy -> Gameboy
+set2H :: CPU -> CPU
 set2H = set 2 cpuRegisterH
 
-set3H :: Gameboy -> Gameboy
+set3H :: CPU -> CPU
 set3H = set 3 cpuRegisterH
 
-set4H :: Gameboy -> Gameboy
+set4H :: CPU -> CPU
 set4H = set 4 cpuRegisterH
 
-set5H :: Gameboy -> Gameboy
+set5H :: CPU -> CPU
 set5H = set 5 cpuRegisterH
 
-set6H :: Gameboy -> Gameboy
+set6H :: CPU -> CPU
 set6H = set 6 cpuRegisterH
 
-set7H :: Gameboy -> Gameboy
+set7H :: CPU -> CPU
 set7H = set 7 cpuRegisterH
 
-set0L :: Gameboy -> Gameboy
+set0L :: CPU -> CPU
 set0L = set 0 cpuRegisterL
 
-set1L :: Gameboy -> Gameboy
+set1L :: CPU -> CPU
 set1L = set 1 cpuRegisterL
 
-set2L :: Gameboy -> Gameboy
+set2L :: CPU -> CPU
 set2L = set 2 cpuRegisterL
 
-set3L :: Gameboy -> Gameboy
+set3L :: CPU -> CPU
 set3L = set 3 cpuRegisterL
 
-set4L :: Gameboy -> Gameboy
+set4L :: CPU -> CPU
 set4L = set 4 cpuRegisterL
 
-set5L :: Gameboy -> Gameboy
+set5L :: CPU -> CPU
 set5L = set 5 cpuRegisterL
 
-set6L :: Gameboy -> Gameboy
+set6L :: CPU -> CPU
 set6L = set 6 cpuRegisterL
 
-set7L :: Gameboy -> Gameboy
+set7L :: CPU -> CPU
 set7L = set 7 cpuRegisterL
 
-set0A :: Gameboy -> Gameboy
+set0A :: CPU -> CPU
 set0A = set 0 cpuRegisterA
 
-set1A :: Gameboy -> Gameboy
+set1A :: CPU -> CPU
 set1A = set 1 cpuRegisterA
 
-set2A :: Gameboy -> Gameboy
+set2A :: CPU -> CPU
 set2A = set 2 cpuRegisterA
 
-set3A :: Gameboy -> Gameboy
+set3A :: CPU -> CPU
 set3A = set 3 cpuRegisterA
 
-set4A :: Gameboy -> Gameboy
+set4A :: CPU -> CPU
 set4A = set 4 cpuRegisterA
 
-set5A :: Gameboy -> Gameboy
+set5A :: CPU -> CPU
 set5A = set 5 cpuRegisterA
 
-set6A :: Gameboy -> Gameboy
+set6A :: CPU -> CPU
 set6A = set 6 cpuRegisterA
 
-set7A :: Gameboy -> Gameboy
+set7A :: CPU -> CPU
 set7A = set 7 cpuRegisterA
 
-set0HL :: Gameboy -> Gameboy
-set0HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+set0HL :: CPU -> CPU
+set0HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 0) .~ True
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 0) .~ True
 
-set1HL :: Gameboy -> Gameboy
-set1HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+set1HL :: CPU -> CPU
+set1HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 1) .~ True
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 1) .~ True
 
-set2HL :: Gameboy -> Gameboy
-set2HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+set2HL :: CPU -> CPU
+set2HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 2) .~ True
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 2) .~ True
 
-set3HL :: Gameboy -> Gameboy
-set3HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+set3HL :: CPU -> CPU
+set3HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 3) .~ True
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 3) .~ True
 
-set4HL :: Gameboy -> Gameboy
-set4HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+set4HL :: CPU -> CPU
+set4HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 4) .~ True
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 4) .~ True
 
-set5HL :: Gameboy -> Gameboy
-set5HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+set5HL :: CPU -> CPU
+set5HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 5) .~ True
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 5) .~ True
 
-set6HL :: Gameboy -> Gameboy
-set6HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+set6HL :: CPU -> CPU
+set6HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 6) .~ True
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 6) .~ True
 
-set7HL :: Gameboy -> Gameboy
-set7HL gb = gb & mcuWrite (gb ^. gbCPU . cpuRegisterHL) newVal
+set7HL :: CPU -> CPU
+set7HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (gb ^. gbCPU . cpuRegisterHL) gb & bitwiseValue (bit 7) .~ True
+    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 7) .~ True

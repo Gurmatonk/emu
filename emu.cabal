@@ -25,13 +25,15 @@ source-repository head
 
 library
   exposed-modules:
+      Cartridge
       CB
       CPU
-      Gameboy
+      Lenses
       MCU
       PPU
       RAM
       Screen
+      Types
       Utils
   other-modules:
       Paths_emu
@@ -39,6 +41,7 @@ library
       src
   build-depends:
       base >=4.7 && <5
+    , bytestring
     , containers
     , gloss
     , lens
@@ -55,6 +58,7 @@ executable emu-exe
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , bytestring
     , containers
     , emu
     , gloss
@@ -73,6 +77,7 @@ test-suite emu-test
   ghc-options: -threaded -rtsopts -with-rtsopts=-N
   build-depends:
       base >=4.7 && <5
+    , bytestring
     , containers
     , emu
     , gloss
