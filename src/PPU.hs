@@ -1,52 +1,37 @@
-{-# LANGUAGE TemplateHaskell #-}
 {-# LANGUAGE RankNTypes #-}
 
 module PPU 
   (
     PPU,
-    initPpu
+    initPpu,
+    vRamLookup,
+    vRamWrite
   ) where
 
 import Control.Lens
 import Data.Bits (bit)
-import Data.Word (Word8)
+import Data.Map (Map)
+import qualified Data.Map as M
+import Data.Maybe (fromMaybe)
+import Data.Word (Word8, Word16)
 
 import Utils (bitwiseValue, boolIso, dualBit)
-
-type Position = Word8
-
-data PPU = PPU
-  { _ppuLCDC :: Word8, -- FF40 (R/W)
-    _ppuSTAT :: Word8, -- FF41 (R/W) Note: bits 0-2 are READ ONLY according to pandocs, bit 7 appears to be unused
-    _ppuScrollY :: Position, -- FF42 (R/W) Top position of visible 160x144 area within 256x256 BG map
-    _ppuScrollX :: Position, -- FF43 (R/W) Left position of visible 160x144 area within 256x256 BG map
-    _ppuLCDY :: Position, -- FF44 (R) Currently drawn scanline. 0-153 -> 144-153 = VBlank
-    _ppuLYCompare :: Word8, -- FF45 (R/W) LY Compare. If LYC==LY, set flag in STAT and request interrupt if enabled
-    _ppuDMA :: Word8, -- TODO
-    _ppuBGPalette :: Word8, -- FF47 (R/W) BG Colour Palette
-    _ppuOBJPalette0 :: Word8, -- FF48 (R/W) OBJ Colour Palette 0 - Bits 1 0 are ignored, index 0 is always transparent for OBJs
-    _ppuOBJPalette1 :: Word8, -- FF49 (R/W) OBJ Colour Palette 1 - Bits 1 0 are ignored, index 0 is always transparent for OBJs
-    _ppuWindowY :: Position, -- FF4A (R/W) Top coordinate of Window
-    _ppuWindowX :: Position -- FF4B (R/W) Left coordinate of Window + 7 (WX == 7 is left-aligned with Screen)
-  }
-  deriving (Show)
+import Types
 
 initPpu :: PPU
 initPpu = undefined
 
-makeLenses ''PPU
+vRamLookup :: Word16 -> PPU -> Word8
+vRamLookup a ppu =
+  case ppu ^. ppuMode of
+    LCDTransfer -> 0xFF
+    _ -> fromMaybe 0xFF . view (ppuVRAM . at a) $ ppu
 
-data BGWindowTileDataArea = TDA8800To97FF | TDA8000To8FFF
-
-data WindowTileMapArea = WTMA9800To9BFF | WTMA9C00To9FFF
-
-data BGTileMapArea = BTMA9800To9BFF | BTMA9C00To9FFF
-
-data SpriteSize = Size8x8 | Size8x16
-
-data Mode = HBlank | VBlank | SearchingOAM | LCDTransfer
-
-data Colour = White | LightGray | DarkGray | Black
+vRamWrite :: Word16 -> Word8 -> PPU -> PPU
+vRamWrite a w ppu =
+  case ppu ^. ppuMode of
+    LCDTransfer -> ppu
+    _ -> ppu & ppuVRAM . at a ?~ w
 
 ppuDisplayEnableFlag :: Lens' PPU Bool
 ppuDisplayEnableFlag = ppuLCDC . bitwiseValue (bit 7)

@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module Cartridge where
 
 import Control.Lens
@@ -12,16 +10,7 @@ import Data.Maybe (fromMaybe)
 import Data.Word (Word8, Word16)
 import Numeric (showHex)
 
-data Cartridge = Cartridge
-  { _cartridgeRawData :: [Word8],
-    _cartridgeROM00 :: Map Word16 Word8,
-    _cartridgeROMNN :: Map Word16 Word8
-  }
-
-makeLenses ''Cartridge
-
-instance Show Cartridge where
-  show = dumpROMNN
+import Types
 
 dumpROMNN :: Cartridge -> String
 dumpROMNN c = show $ bimap (`showHex` "") (`showHex` "") <$> M.toList (c ^. cartridgeROMNN)

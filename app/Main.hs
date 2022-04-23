@@ -2,13 +2,15 @@ module Main where
 
 import qualified Data.ByteString as BS
 
-import Cartridge (Cartridge)
+import Types (Cartridge)
 import qualified Cartridge as C
+
+import Screen(runGame)
 
 main :: IO ()
 main = do
     c <- loadCartridge
-    print c
+    runGame c
 
 loadCartridge :: IO Cartridge
 loadCartridge = do

@@ -1,5 +1,3 @@
-{-# LANGUAGE TemplateHaskell #-}
-
 module MCU
   (
     MCU,
@@ -15,19 +13,12 @@ import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 import Data.Word (Word8, Word16)
 
+import Types
+
 import Cartridge
-import RAM (RAM, ramLookup, ramWrite)
+import RAM (ramLookup, ramWrite)
 
-import PPU
-
-data MCU = MCU
-  { _mcuRAM :: RAM,
-    _mcuCartridge :: Cartridge,
-    _mcuPPU :: PPU
-  }
-    deriving (Show)
-
-makeLenses ''MCU
+import PPU (initPpu, vRamLookup, vRamWrite)
 
 initMcu :: MCU
 initMcu = MCU mempty initCartridge initPpu
@@ -93,7 +84,7 @@ inBootRom = (==) 0xFF50
 addressLookup :: Word16 -> MCU -> Word8
 addressLookup a | inRomBank00 a      = fromMaybe 0xFF . view (mcuCartridge . cartridgeROM00 . to (M.lookup a))
                 | inRomBankNN a      = fromMaybe 0xFF . view (mcuCartridge . cartridgeROMNN . to (M.lookup a))
-                | inVRam a           = undefined
+                | inVRam a           = view (mcuPPU . to (vRamLookup a))
                 | inCartridgeRam a   = undefined
                 | inRam a            = view (mcuRAM . to (ramLookup a))
                 | inMirrorRam a      = undefined
@@ -111,7 +102,7 @@ addressLookup a | inRomBank00 a      = fromMaybe 0xFF . view (mcuCartridge . car
 addressWrite :: Word16 -> Word8 -> MCU -> MCU
 addressWrite a w | inRomBank00 a      = id
                  | inRomBankNN a      = id
-                 | inVRam a           = undefined
+                 | inVRam a           = mcuPPU %~ vRamWrite a w
                  | inCartridgeRam a   = undefined
                  | inRam a            = mcuRAM %~ ramWrite a w
                  | inMirrorRam a      = undefined
