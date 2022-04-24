@@ -5,6 +5,8 @@ import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Interact
 
 import CPU (initCpu)
+import PPU (toByteString)
+import Emulator (runCycles)
 
 import Types
 
@@ -17,22 +19,32 @@ initialWorld :: Cartridge -> CPU
 initialWorld c = initCpu & cpuMCU . mcuCartridge .~ c
 
 window :: Display
-window = InWindow "GAMEBOY" (160, 144) (10, 10)
+window = InWindow "GAMEBOY" (windowHeight * 4, windowWidth * 4) (10, 10)
 
 background :: Color
 background = makeColorI 155 188 15 255
 
 toPicture :: CPU -> Picture
-toPicture _cpu = undefined
+toPicture cpu = 
+  scale 4.0 4.0 $
+  bitmapOfByteString 
+    windowWidth 
+    windowHeight 
+    (BitmapFormat TopToBottom PxRGBA) 
+    (cpu ^. cpuMCU . mcuPPU . to toByteString)
+    True
 
 handleInputs :: Event -> CPU -> CPU
-handleInputs _e = undefined
+handleInputs _e = id -- TODO: Implement
 
 gameStep :: Float -> CPU -> CPU
-gameStep _ = undefined
+gameStep secs = runCycles (ceiling (secs * cyclesPerSecond))
 
 windowHeight :: Int
 windowHeight = 160
 
 windowWidth :: Int
 windowWidth = 144
+
+cyclesPerSecond :: Float
+cyclesPerSecond = 4194304

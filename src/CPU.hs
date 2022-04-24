@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
 
 module CPU where
 
@@ -34,257 +35,257 @@ initCpu =
       _cpuIME = False
     }
 
-runInstruction :: CPU -> CPU
+runInstruction :: CPU -> (CPU, Int)
 runInstruction = uncurry execInstruction . swap . pcLookup
 
-execInstruction :: Word8 -> CPU -> CPU
+execInstruction :: Word8 -> CPU -> (CPU, Int)
 execInstruction opcode =
   case opcode of
-    0x00 -> nop
-    0x01 -> ldBCd16
-    0x02 -> ldBCA
-    0x03 -> incBC
-    0x04 -> incB
-    0x05 -> decB
-    0x06 -> ldBd8
-    0x07 -> rlcA
-    0x08 -> lda16SP
-    0x09 -> addHLBC
-    0x0A -> ldABC
-    0x0B -> decBC
-    0x0C -> incC
-    0x0D -> decC
-    0x0E -> ldCd8
-    0x0F -> rrcA
-    0x10 -> stop
-    0x11 -> ldDEd16
-    0x12 -> ldDEA
-    0x13 -> incDE
-    0x14 -> incD
-    0x15 -> decD
-    0x16 -> ldDd8
-    0x17 -> rlA
-    0x18 -> jrr8
-    0x19 -> addHLDE
-    0x1A -> ldADE
-    0x1B -> decDE
-    0x1C -> incE
-    0x1D -> decE
-    0x1E -> ldEd8
-    0x1F -> rrA
-    0x20 -> jrNZr8
-    0x21 -> ldHLd16
-    0x22 -> ldHLplusA
-    0x23 -> incHL
-    0x24 -> incH
-    0x25 -> decH
-    0x26 -> ldHd8
-    0x27 -> daa
-    0x28 -> jrZr8
-    0x29 -> addHLHL
-    0x2A -> ldAHLplus
-    0x2B -> decHL
-    0x2C -> incL
-    0x2D -> decL
-    0x2E -> ldLd8
-    0x2F -> cpl
-    0x30 -> jrNCr8
-    0x31 -> ldSPd16
-    0x32 -> ldHLminusA
-    0x33 -> incSP
-    0x34 -> incHL_
-    0x35 -> decHL_
-    0x36 -> ldHLd8
-    0x37 -> scf
-    0x38 -> jrCr8
-    0x39 -> addHLSP
-    0x3A -> ldAHLminus
-    0x3B -> decSP
-    0x3C -> incA
-    0x3D -> decA
-    0x3E -> ldAd8
-    0x3F -> ccf
-    0x40 -> ldBB
-    0x41 -> ldBC
-    0x42 -> ldBD
-    0x43 -> ldBE
-    0x44 -> ldBH
-    0x45 -> ldBL
-    0x46 -> ldBHL
-    0x47 -> ldBA
-    0x48 -> ldCB
-    0x49 -> ldCC
-    0x4A -> ldCD
-    0x4B -> ldCE
-    0x4C -> ldCH
-    0x4D -> ldCL
-    0x4E -> ldCHL
-    0x4F -> ldCA
-    0x50 -> ldDB
-    0x51 -> ldDC
-    0x52 -> ldDD
-    0x53 -> ldDE
-    0x54 -> ldDH
-    0x55 -> ldDL
-    0x56 -> ldDHL
-    0x57 -> ldDA
-    0x58 -> ldEB
-    0x59 -> ldEC
-    0x5A -> ldED
-    0x5B -> ldEE
-    0x5C -> ldEH
-    0x5D -> ldEL
-    0x5E -> ldEHL
-    0x5F -> ldEA
-    0x60 -> ldHB
-    0x61 -> ldHC
-    0x62 -> ldHD
-    0x63 -> ldHE
-    0x64 -> ldHH
-    0x65 -> ldHL
-    0x66 -> ldHHL
-    0x67 -> ldHA
-    0x68 -> ldLB
-    0x69 -> ldLC
-    0x6A -> ldLD
-    0x6B -> ldLE
-    0x6C -> ldLH
-    0x6D -> ldLL
-    0x6E -> ldLHL
-    0x6F -> ldLA
-    0x70 -> ldHLB
-    0x71 -> ldHLC
-    0x72 -> ldHLD
-    0x73 -> ldHLE
-    0x74 -> ldHLH
-    0x75 -> ldHLL
-    0x76 -> halt
-    0x77 -> ldHLA
-    0x78 -> ldAB
-    0x79 -> ldAC
-    0x7A -> ldAD
-    0x7B -> ldAE
-    0x7C -> ldAH
-    0x7D -> ldAL
-    0x7E -> ldAHL
-    0x7F -> ldAA
-    0x80 -> addAB
-    0x81 -> addAC
-    0x82 -> addAD
-    0x83 -> addAE
-    0x84 -> addAH
-    0x85 -> addAL
-    0x86 -> addAHL
-    0x87 -> addAA
-    0x88 -> adcAB
-    0x89 -> adcAC
-    0x8A -> adcAD
-    0x8B -> adcAE
-    0x8C -> adcAH
-    0x8D -> adcAL
-    0x8E -> adcAHL
-    0x8F -> adcAA
-    0x90 -> subB
-    0x91 -> subC
-    0x92 -> subD
-    0x93 -> subE
-    0x94 -> subH
-    0x95 -> subL
-    0x96 -> subHL
-    0x97 -> subA
-    0x98 -> sbcB
-    0x99 -> sbcC
-    0x9A -> sbcD
-    0x9B -> sbcE
-    0x9C -> sbcH
-    0x9D -> sbcL
-    0x9E -> sbcHL
-    0x9F -> sbcA
-    0xA0 -> andB
-    0xA1 -> andC
-    0xA2 -> andD
-    0xA3 -> andE
-    0xA4 -> andH
-    0xA5 -> andL
-    0xA6 -> andHL
-    0xA7 -> andA
-    0xA8 -> xorB
-    0xA9 -> xorC
-    0xAA -> xorD
-    0xAB -> xorE
-    0xAC -> xorH
-    0xAD -> xorL
-    0xAE -> xorHL
-    0xAF -> xorA
-    0xB0 -> orB
-    0xB1 -> orC
-    0xB2 -> orD
-    0xB3 -> orE
-    0xB4 -> orH
-    0xB5 -> orL
-    0xB6 -> orHL
-    0xB7 -> orA
-    0xB8 -> cpB
-    0xB9 -> cpC
-    0xBA -> cpD
-    0xBB -> cpE
-    0xBC -> cpH
-    0xBD -> cpL
-    0xBE -> cpHL
-    0xBF -> cpA
-    0xC0 -> retNZ
-    0xC1 -> popBC
-    0xC2 -> jpNZa16
-    0xC3 -> jpa16
-    0xC4 -> callNZa16
-    0xC5 -> pushBC
-    0xC6 -> addAd8
-    0xC7 -> rst00
-    0xC8 -> retZ
-    0xC9 -> ret
-    0xCA -> jpZa16
+    0x00 -> (,4) . nop
+    0x01 -> (,12) . ldBCd16
+    0x02 -> (,8) . ldBCA
+    0x03 -> (,8) . incBC
+    0x04 -> (,4) . incB
+    0x05 -> (,4) . decB
+    0x06 -> (,8) . ldBd8
+    0x07 -> (,4) . rlcA
+    0x08 -> (,20) . lda16SP
+    0x09 -> (,8) . addHLBC
+    0x0A -> (,8) . ldABC
+    0x0B -> (,8) . decBC
+    0x0C -> (,4) . incC
+    0x0D -> (,4) . decC
+    0x0E -> (,8) . ldCd8
+    0x0F -> (,4) . rrcA
+    0x10 -> (,4) . stop
+    0x11 -> (,12) . ldDEd16
+    0x12 -> (,8) . ldDEA
+    0x13 -> (,8) . incDE
+    0x14 -> (,4) . incD
+    0x15 -> (,4) . decD
+    0x16 -> (,8) . ldDd8
+    0x17 -> (,4) . rlA
+    0x18 -> (,8) . jrr8
+    0x19 -> (,8) . addHLDE
+    0x1A -> (,8) . ldADE
+    0x1B -> (,8) . decDE
+    0x1C -> (,4) . incE
+    0x1D -> (,4) . decE
+    0x1E -> (,8) . ldEd8
+    0x1F -> (,4) . rrA
+    0x20 -> (,8) . jrNZr8
+    0x21 -> (,12) . ldHLd16
+    0x22 -> (,8) . ldHLplusA
+    0x23 -> (,8) . incHL
+    0x24 -> (,4) . incH
+    0x25 -> (,4) . decH
+    0x26 -> (,8) . ldHd8
+    0x27 -> (,4) . daa
+    0x28 -> (,8) . jrZr8
+    0x29 -> (,8) . addHLHL
+    0x2A -> (,8) . ldAHLplus
+    0x2B -> (,8) . decHL
+    0x2C -> (,4) . incL
+    0x2D -> (,4) . decL
+    0x2E -> (,8) . ldLd8
+    0x2F -> (,4) . cpl
+    0x30 -> (,8) . jrNCr8
+    0x31 -> (,12) . ldSPd16
+    0x32 -> (,8) . ldHLminusA
+    0x33 -> (,8) . incSP
+    0x34 -> (,12) . incHL_
+    0x35 -> (,12) . decHL_
+    0x36 -> (,12) . ldHLd8
+    0x37 -> (,4) . scf
+    0x38 -> (,8) . jrCr8
+    0x39 -> (,8) . addHLSP
+    0x3A -> (,8) . ldAHLminus
+    0x3B -> (,8) . decSP
+    0x3C -> (,4) . incA
+    0x3D -> (,4) . decA
+    0x3E -> (,8) . ldAd8
+    0x3F -> (,4) . ccf
+    0x40 -> (,4) . ldBB
+    0x41 -> (,4) . ldBC
+    0x42 -> (,4) . ldBD
+    0x43 -> (,4) . ldBE
+    0x44 -> (,4) . ldBH
+    0x45 -> (,4) . ldBL
+    0x46 -> (,8) . ldBHL
+    0x47 -> (,4) . ldBA
+    0x48 -> (,4) . ldCB
+    0x49 -> (,4) . ldCC
+    0x4A -> (,4) . ldCD
+    0x4B -> (,4) . ldCE
+    0x4C -> (,4) . ldCH
+    0x4D -> (,4) . ldCL
+    0x4E -> (,8) . ldCHL
+    0x4F -> (,4) . ldCA
+    0x50 -> (,4) . ldDB
+    0x51 -> (,4) . ldDC
+    0x52 -> (,4) . ldDD
+    0x53 -> (,4) . ldDE
+    0x54 -> (,4) . ldDH
+    0x55 -> (,4) . ldDL
+    0x56 -> (,8) . ldDHL
+    0x57 -> (,4) . ldDA
+    0x58 -> (,4) . ldEB
+    0x59 -> (,4) . ldEC
+    0x5A -> (,4) . ldED
+    0x5B -> (,4) . ldEE
+    0x5C -> (,4) . ldEH
+    0x5D -> (,4) . ldEL
+    0x5E -> (,8) . ldEHL
+    0x5F -> (,4) . ldEA
+    0x60 -> (,4) . ldHB
+    0x61 -> (,4) . ldHC
+    0x62 -> (,4) . ldHD
+    0x63 -> (,4) . ldHE
+    0x64 -> (,4) . ldHH
+    0x65 -> (,4) . ldHL
+    0x66 -> (,8) . ldHHL
+    0x67 -> (,4) . ldHA
+    0x68 -> (,4) . ldLB
+    0x69 -> (,4) . ldLC
+    0x6A -> (,4) . ldLD
+    0x6B -> (,4) . ldLE
+    0x6C -> (,4) . ldLH
+    0x6D -> (,4) . ldLL
+    0x6E -> (,8) . ldLHL
+    0x6F -> (,4) . ldLA
+    0x70 -> (,8) . ldHLB
+    0x71 -> (,8) . ldHLC
+    0x72 -> (,8) . ldHLD
+    0x73 -> (,8) . ldHLE
+    0x74 -> (,8) . ldHLH
+    0x75 -> (,8) . ldHLL
+    0x76 -> (,4) . halt
+    0x77 -> (,8) . ldHLA
+    0x78 -> (,4) . ldAB
+    0x79 -> (,4) . ldAC
+    0x7A -> (,4) . ldAD
+    0x7B -> (,4) . ldAE
+    0x7C -> (,4) . ldAH
+    0x7D -> (,4) . ldAL
+    0x7E -> (,8) . ldAHL
+    0x7F -> (,4) . ldAA
+    0x80 -> (,4) . addAB
+    0x81 -> (,4) . addAC
+    0x82 -> (,4) . addAD
+    0x83 -> (,4) . addAE
+    0x84 -> (,4) . addAH
+    0x85 -> (,4) . addAL
+    0x86 -> (,8) . addAHL
+    0x87 -> (,4) . addAA
+    0x88 -> (,4) . adcAB
+    0x89 -> (,4) . adcAC
+    0x8A -> (,4) . adcAD
+    0x8B -> (,4) . adcAE
+    0x8C -> (,4) . adcAH
+    0x8D -> (,4) . adcAL
+    0x8E -> (,8) . adcAHL
+    0x8F -> (,4) . adcAA
+    0x90 -> (,4) . subB
+    0x91 -> (,4) . subC
+    0x92 -> (,4) . subD
+    0x93 -> (,4) . subE
+    0x94 -> (,4) . subH
+    0x95 -> (,4) . subL
+    0x96 -> (,8) . subHL
+    0x97 -> (,4) . subA
+    0x98 -> (,4) . sbcB
+    0x99 -> (,4) . sbcC
+    0x9A -> (,4) . sbcD
+    0x9B -> (,4) . sbcE
+    0x9C -> (,4) . sbcH
+    0x9D -> (,4) . sbcL
+    0x9E -> (,8) . sbcHL
+    0x9F -> (,4) . sbcA
+    0xA0 -> (,4) . andB
+    0xA1 -> (,4) . andC
+    0xA2 -> (,4) . andD
+    0xA3 -> (,4) . andE
+    0xA4 -> (,4) . andH
+    0xA5 -> (,4) . andL
+    0xA6 -> (,8) . andHL
+    0xA7 -> (,4) . andA
+    0xA8 -> (,4) . xorB
+    0xA9 -> (,4) . xorC
+    0xAA -> (,4) . xorD
+    0xAB -> (,4) . xorE
+    0xAC -> (,4) . xorH
+    0xAD -> (,4) . xorL
+    0xAE -> (,8) . xorHL
+    0xAF -> (,4) . xorA
+    0xB0 -> (,4) . orB
+    0xB1 -> (,4) . orC
+    0xB2 -> (,4) . orD
+    0xB3 -> (,4) . orE
+    0xB4 -> (,4) . orH
+    0xB5 -> (,4) . orL
+    0xB6 -> (,8) . orHL
+    0xB7 -> (,4) . orA
+    0xB8 -> (,4) . cpB
+    0xB9 -> (,4) . cpC
+    0xBA -> (,4) . cpD
+    0xBB -> (,4) . cpE
+    0xBC -> (,4) . cpH
+    0xBD -> (,4) . cpL
+    0xBE -> (,8) . cpHL
+    0xBF -> (,4) . cpA
+    0xC0 -> (,8) . retNZ
+    0xC1 -> (,12) . popBC
+    0xC2 -> (,12) . jpNZa16
+    0xC3 -> (,12) . jpa16
+    0xC4 -> (,12) . callNZa16
+    0xC5 -> (,16) . pushBC
+    0xC6 -> (,8) . addAd8
+    0xC7 -> (,32) . rst00
+    0xC8 -> (,8) . retZ
+    0xC9 -> (,8) . ret
+    0xCA -> (,12) . jpZa16
     0xCB -> cb
-    0xCC -> callZa16
-    0xCD -> calla16
-    0xCE -> adcAd8
-    0xCF -> rst08
-    0xD0 -> retNC
-    0xD1 -> popDE
-    0xD2 -> jpNCa16
-    0xD4 -> callNCa16
-    0xD5 -> pushDE
-    0xD6 -> subd8
-    0xD7 -> rst10
-    0xD8 -> retC
-    0xD9 -> reti
-    0xDA -> jpCa16
-    0xDC -> callCa16
-    0xDE -> sbcAd8
-    0xDF -> rst18
-    0xE0 -> ldha8A
-    0xE1 -> popHL
-    0xE2 -> ldhCA
-    0xE5 -> pushHL
-    0xE6 -> andd8
-    0xE7 -> rst20
-    0xE8 -> addSPr8
-    0xE9 -> jpHL
-    0xEA -> lda16A
-    0xEE -> xord8
-    0xEF -> rst28
-    0xF0 -> ldhAa8
-    0xF1 -> popAF
-    0xF2 -> ldhAC
-    0xF3 -> di
-    0xF5 -> pushAF
-    0xF6 -> ord8
-    0xF7 -> rst30
-    0xF8 -> ldHLSPplusr8
-    0xF9 -> ldSPHL
-    0xFA -> ldAa16
-    0xFB -> ei
-    0xFE -> cpd8
-    0xFF -> rst38
+    0xCC -> (,12) . callZa16
+    0xCD -> (,12) . calla16
+    0xCE -> (,8) . adcAd8
+    0xCF -> (,32) . rst08
+    0xD0 -> (,8) . retNC
+    0xD1 -> (,12) . popDE
+    0xD2 -> (,12) . jpNCa16
+    0xD4 -> (,12) . callNCa16
+    0xD5 -> (,16) . pushDE
+    0xD6 -> (,8) . subd8
+    0xD7 -> (,32) . rst10
+    0xD8 -> (,8) . retC
+    0xD9 -> (,8) . reti
+    0xDA -> (,12) . jpCa16
+    0xDC -> (,12) . callCa16
+    0xDE -> (,8) . sbcAd8 -- CPU Manual gave ?? for this ...
+    0xDF -> (,32) . rst18
+    0xE0 -> (,12) . ldha8A
+    0xE1 -> (,12) . popHL
+    0xE2 -> (,8) . ldhCA
+    0xE5 -> (,16) . pushHL
+    0xE6 -> (,8) . andd8
+    0xE7 -> (,32) . rst20
+    0xE8 -> (,16) . addSPr8
+    0xE9 -> (,4) . jpHL
+    0xEA -> (,16) . lda16A
+    0xEE -> (,8) . xord8
+    0xEF -> (,32) . rst28
+    0xF0 -> (,12) . ldhAa8
+    0xF1 -> (,12) . popAF
+    0xF2 -> (,8) . ldhAC
+    0xF3 -> (,4) . di
+    0xF5 -> (,16) . pushAF
+    0xF6 -> (,8) . ord8
+    0xF7 -> (,32) . rst30
+    0xF8 -> (,12) . ldHLSPplusr8
+    0xF9 -> (,8) . ldSPHL
+    0xFA -> (,16) . ldAa16
+    0xFB -> (,4) . ei
+    0xFE -> (,8) . cpd8
+    0xFF -> (,32) . rst38
     _ -> undefined
 
 nop :: CPU -> CPU

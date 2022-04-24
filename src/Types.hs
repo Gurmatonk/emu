@@ -45,6 +45,7 @@ data PPU = PPU
     _ppuScrollY :: Position, -- FF42 (R/W) Top position of visible 160x144 area within 256x256 BG map
     _ppuScrollX :: Position, -- FF43 (R/W) Left position of visible 160x144 area within 256x256 BG map
     _ppuLCDY :: Position, -- FF44 (R) Currently drawn scanline. 0-153 -> 144-153 = VBlank
+    _ppuLCDX :: Position, -- No Equivalent register, tracks current pixel X position
     _ppuLYCompare :: Word8, -- FF45 (R/W) LY Compare. If LYC==LY, set flag in STAT and request interrupt if enabled
     _ppuDMA :: Word8, -- TODO
     _ppuBGPalette :: Word8, -- FF47 (R/W) BG Colour Palette
@@ -54,7 +55,8 @@ data PPU = PPU
     _ppuWindowX :: Position, -- FF4B (R/W) Left coordinate of Window + 7 (WX == 7 is left-aligned with Screen)
     _ppuVRAM :: VRAM,
     _ppuBGQueue :: Seq Pixel,
-    _ppuOAMQueue :: Seq Pixel
+    _ppuOAMQueue :: Seq Pixel,
+    _ppuPixelBuffer :: [Colour] -- final pixel buffer to be output
   }
   deriving (Show)
 
@@ -63,17 +65,22 @@ type Position = Word8
 type VRAM = Map Word16 Word8
 
 data BGWindowTileDataArea = TDA8800To97FF | TDA8000To8FFF
+  deriving (Show, Eq)
 
 data WindowTileMapArea = WTMA9800To9BFF | WTMA9C00To9FFF
+  deriving (Show, Eq)
 
 data BGTileMapArea = BTMA9800To9BFF | BTMA9C00To9FFF
+  deriving (Show, Eq)
 
 data SpriteSize = Size8x8 | Size8x16
+  deriving (Show, Eq)
 
 data Mode = HBlank | VBlank | SearchingOAM | LCDTransfer
+  deriving (Show, Eq)
 
 data Colour = White | LightGray | DarkGray | Black
-  deriving (Show)
+  deriving (Show, Eq)
 
 data Pixel =
   Pixel
@@ -84,10 +91,10 @@ data Pixel =
   deriving (Show)
 
 data PixelPalette = OBPJPalette1 | OBJPalette0
-  deriving (Show)
+  deriving (Show, Eq)
 
 data BGOBJPriority = OBJOverBG | BGOverOBJ
-  deriving (Show)
+  deriving (Show, Eq)
 
 makeLenses ''CPU
 makeLenses ''MCU

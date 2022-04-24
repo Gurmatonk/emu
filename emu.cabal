@@ -28,6 +28,7 @@ library
       Cartridge
       CB
       CPU
+      Emulator
       Lenses
       MCU
       PPU

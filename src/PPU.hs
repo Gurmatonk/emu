@@ -4,22 +4,53 @@ module PPU
   (
     PPU,
     initPpu,
+    toByteString,
     vRamLookup,
     vRamWrite
   ) where
 
 import Control.Lens
 import Data.Bits (bit)
+import Data.ByteString (ByteString)
+import qualified Data.ByteString as BS
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
+import qualified Data.Sequence as Seq
 import Data.Word (Word8, Word16)
 
 import Utils (bitwiseValue, boolIso, dualBit)
 import Types
 
 initPpu :: PPU
-initPpu = undefined
+initPpu =
+  PPU
+    { _ppuLCDC = 0x91,
+      _ppuSTAT = 0x85,
+      _ppuScrollY = 0x00,
+      _ppuScrollX = 0x00,
+      _ppuLCDY = 0x00,
+      _ppuLCDX = 0x00,
+      _ppuLYCompare = 0x00,
+      _ppuDMA = 0xFF,
+      _ppuBGPalette = 0xFC,
+      _ppuOBJPalette0 = undefined,
+      _ppuOBJPalette1 = undefined,
+      _ppuWindowY = 0x00,
+      _ppuWindowX = 0x00,
+      _ppuVRAM = mempty,
+      _ppuBGQueue = mempty,
+      _ppuOAMQueue = mempty,
+      _ppuPixelBuffer = testData
+    }
+
+testData :: [Colour]
+testData = [toColour i | i <- [1..]]
+  where
+    toColour i | i `mod` 3 == 0 && i `mod` 5 == 0 = Black
+               | i `mod` 3 == 0 = LightGray
+               | i `mod` 5 == 0 = DarkGray
+               | otherwise = White
 
 vRamLookup :: Word16 -> PPU -> Word8
 vRamLookup a ppu =
@@ -175,3 +206,26 @@ ppuOBJ1ColourIndex1 = lens getter setter
   where
     getter ppu = ppu ^. ppuOBJPalette1 . dualBit 3 2 . colour
     setter ppu c = ppu & ppuOBJPalette1 . dualBit 3 2 .~ c ^. from colour
+
+withinWindow :: PPU -> Bool
+withinWindow ppu = 
+  ppu ^. ppuLCDX > ppu ^. ppuWindowX - 7
+    && ppu ^. ppuLCDY > ppu ^. ppuWindowY -- Unclear whether this is needed, pandocs only mention the X coordinate...
+
+pixelFetcher :: PPU -> PPU
+pixelFetcher ppu = undefined ppu
+  where
+    getTile ppu | ppu ^. ppuBGTileMapArea == BTMA9C00To9FFF && not (withinWindow ppu) = 0x9C00
+                | ppu ^. ppuWindowTileMapArea == WTMA9C00To9FFF && withinWindow ppu = 0x9C00
+                | otherwise = 0x9800
+
+toByteString :: PPU -> ByteString
+toByteString ppu = BS.pack . concatMap toRgba $ screen
+  where
+    screen = take (160 * 144) . drop (ppu ^. ppuLCDX . to fromIntegral) . view ppuPixelBuffer $ ppu -- TOOD: Implement
+
+toRgba :: Colour -> [Word8]
+toRgba White = [155, 188, 15, 255]
+toRgba LightGray = [139, 172, 15, 255]
+toRgba DarkGray = [48, 98, 48, 255]
+toRgba Black = [15, 56, 15, 255]

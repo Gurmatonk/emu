@@ -1,4 +1,5 @@
 {-# LANGUAGE RankNTypes #-}
+{-# LANGUAGE TupleSections #-}
 
 module CB where
 
@@ -11,156 +12,156 @@ import Types
 import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup)
 import Utils (bitwiseValue)
 
-cb :: CPU -> CPU
+cb :: CPU -> (CPU, Int)
 cb = uncurry execcb . swap . pcLookup
 
-execcb :: Word8 -> CPU -> CPU
+execcb :: Word8 -> CPU -> (CPU, Int)
 execcb opcode =
   case opcode of
-    0x00 -> rlcB
-    0x01 -> rlcC
-    0x02 -> rlcD
-    0x03 -> rlcE
-    0x04 -> rlcH
-    0x05 -> rlcL
-    0x06 -> rlcHL
-    0x07 -> rlcA
-    0x08 -> rrcB
-    0x09 -> rrcC
-    0x0A -> rrcD
-    0x0B -> rrcE
-    0x0C -> rrcH
-    0x0D -> rrcL
-    0x0E -> rrcHL
-    0x0F -> rrcA
-    0x80 -> res0B
-    0x81 -> res0C
-    0x82 -> res0D
-    0x83 -> res0E
-    0x84 -> res0H
-    0x85 -> res0L
-    0x86 -> res0HL
-    0x87 -> res0A
-    0x88 -> res1B
-    0x89 -> res1C
-    0x8A -> res1D
-    0x8B -> res1E
-    0x8C -> res1H
-    0x8D -> res1L
-    0x8E -> res1HL
-    0x8F -> res1A
-    0x90 -> res2B
-    0x91 -> res2C
-    0x92 -> res2D
-    0x93 -> res2E
-    0x94 -> res2H
-    0x95 -> res2L
-    0x96 -> res2HL
-    0x97 -> res2A
-    0x98 -> res3B
-    0x99 -> res3C
-    0x9A -> res3D
-    0x9B -> res3E
-    0x9C -> res3H
-    0x9D -> res3L
-    0x9E -> res3HL
-    0x9F -> res3A
-    0xA0 -> res4B
-    0xA1 -> res4C
-    0xA2 -> res4D
-    0xA3 -> res4E
-    0xA4 -> res4H
-    0xA5 -> res4L
-    0xA6 -> res4HL
-    0xA7 -> res4A
-    0xA8 -> res5B
-    0xA9 -> res5C
-    0xAA -> res5D
-    0xAB -> res5E
-    0xAC -> res5H
-    0xAD -> res5L
-    0xAE -> res5HL
-    0xAF -> res5A
-    0xB0 -> res6B
-    0xB1 -> res6C
-    0xB2 -> res6D
-    0xB3 -> res6E
-    0xB4 -> res6H
-    0xB5 -> res6L
-    0xB6 -> res6HL
-    0xB7 -> res6A
-    0xB8 -> res7B
-    0xB9 -> res7C
-    0xBA -> res7D
-    0xBB -> res7E
-    0xBC -> res7H
-    0xBD -> res7L
-    0xBE -> res7HL
-    0xBF -> res7A
-    0xC0 -> set0B
-    0xC1 -> set0C
-    0xC2 -> set0D
-    0xC3 -> set0E
-    0xC4 -> set0H
-    0xC5 -> set0L
-    0xC6 -> set0HL
-    0xC7 -> set0A
-    0xC8 -> set1B
-    0xC9 -> set1C
-    0xCA -> set1D
-    0xCB -> set1E
-    0xCC -> set1H
-    0xCD -> set1L
-    0xCE -> set1HL
-    0xCF -> set1A
-    0xD0 -> set2B
-    0xD1 -> set2C
-    0xD2 -> set2D
-    0xD3 -> set2E
-    0xD4 -> set2H
-    0xD5 -> set2L
-    0xD6 -> set2HL
-    0xD7 -> set2A
-    0xD8 -> set3B
-    0xD9 -> set3C
-    0xDA -> set3D
-    0xDB -> set3E
-    0xDC -> set3H
-    0xDD -> set3L
-    0xDE -> set3HL
-    0xDF -> set3A
-    0xE0 -> set4B
-    0xE1 -> set4C
-    0xE2 -> set4D
-    0xE3 -> set4E
-    0xE4 -> set4H
-    0xE5 -> set4L
-    0xE6 -> set4HL
-    0xE7 -> set4A
-    0xE8 -> set5B
-    0xE9 -> set5C
-    0xEA -> set5D
-    0xEB -> set5E
-    0xEC -> set5H
-    0xED -> set5L
-    0xEE -> set5HL
-    0xEF -> set5A
-    0xF0 -> set6B
-    0xF1 -> set6C
-    0xF2 -> set6D
-    0xF3 -> set6E
-    0xF4 -> set6H
-    0xF5 -> set6L
-    0xF6 -> set6HL
-    0xF7 -> set6A
-    0xF8 -> set7B
-    0xF9 -> set7C
-    0xFA -> set7D
-    0xFB -> set7E
-    0xFC -> set7H
-    0xFD -> set7L
-    0xFE -> set7HL
-    0xFF -> set7A
+    0x00 -> (,8) . rlcB
+    0x01 -> (,8) . rlcC
+    0x02 -> (,8) . rlcD
+    0x03 -> (,8) . rlcE
+    0x04 -> (,8) . rlcH
+    0x05 -> (,8) . rlcL
+    0x06 -> (,16) . rlcHL
+    0x07 -> (,8) . rlcA
+    0x08 -> (,8) . rrcB
+    0x09 -> (,8) . rrcC
+    0x0A -> (,8) . rrcD
+    0x0B -> (,8) . rrcE
+    0x0C -> (,8) . rrcH
+    0x0D -> (,8) . rrcL
+    0x0E -> (,16) . rrcHL
+    0x0F -> (,8) . rrcA
+    0x80 -> (,8) . res0B
+    0x81 -> (,8) . res0C
+    0x82 -> (,8) . res0D
+    0x83 -> (,8) . res0E
+    0x84 -> (,8) . res0H
+    0x85 -> (,8) . res0L
+    0x86 -> (,16) . res0HL
+    0x87 -> (,8) . res0A
+    0x88 -> (,8) . res1B
+    0x89 -> (,8) . res1C
+    0x8A -> (,8) . res1D
+    0x8B -> (,8) . res1E
+    0x8C -> (,8) . res1H
+    0x8D -> (,8) . res1L
+    0x8E -> (,16) . res1HL
+    0x8F -> (,8) . res1A
+    0x90 -> (,8) . res2B
+    0x91 -> (,8) . res2C
+    0x92 -> (,8) . res2D
+    0x93 -> (,8) . res2E
+    0x94 -> (,8) . res2H
+    0x95 -> (,8) . res2L
+    0x96 -> (,16) . res2HL
+    0x97 -> (,8) . res2A
+    0x98 -> (,8) . res3B
+    0x99 -> (,8) . res3C
+    0x9A -> (,8) . res3D
+    0x9B -> (,8) . res3E
+    0x9C -> (,8) . res3H
+    0x9D -> (,8) . res3L
+    0x9E -> (,16) . res3HL
+    0x9F -> (,8) . res3A
+    0xA0 -> (,8) . res4B
+    0xA1 -> (,8) . res4C
+    0xA2 -> (,8) . res4D
+    0xA3 -> (,8) . res4E
+    0xA4 -> (,8) . res4H
+    0xA5 -> (,8) . res4L
+    0xA6 -> (,16) . res4HL
+    0xA7 -> (,8) . res4A
+    0xA8 -> (,8) . res5B
+    0xA9 -> (,8) . res5C
+    0xAA -> (,8) . res5D
+    0xAB -> (,8) . res5E
+    0xAC -> (,8) . res5H
+    0xAD -> (,8) . res5L
+    0xAE -> (,16) . res5HL
+    0xAF -> (,8) . res5A
+    0xB0 -> (,8) . res6B
+    0xB1 -> (,8) . res6C
+    0xB2 -> (,8) . res6D
+    0xB3 -> (,8) . res6E
+    0xB4 -> (,8) . res6H
+    0xB5 -> (,8) . res6L
+    0xB6 -> (,16) . res6HL
+    0xB7 -> (,8) . res6A
+    0xB8 -> (,8) . res7B
+    0xB9 -> (,8) . res7C
+    0xBA -> (,8) . res7D
+    0xBB -> (,8) . res7E
+    0xBC -> (,8) . res7H
+    0xBD -> (,8) . res7L
+    0xBE -> (,16) . res7HL
+    0xBF -> (,8) . res7A
+    0xC0 -> (,8) . set0B
+    0xC1 -> (,8) . set0C
+    0xC2 -> (,8) . set0D
+    0xC3 -> (,8) . set0E
+    0xC4 -> (,8) . set0H
+    0xC5 -> (,8) . set0L
+    0xC6 -> (,16) . set0HL
+    0xC7 -> (,8) . set0A
+    0xC8 -> (,8) . set1B
+    0xC9 -> (,8) . set1C
+    0xCA -> (,8) . set1D
+    0xCB -> (,8) . set1E
+    0xCC -> (,8) . set1H
+    0xCD -> (,8) . set1L
+    0xCE -> (,16) . set1HL
+    0xCF -> (,8) . set1A
+    0xD0 -> (,8) . set2B
+    0xD1 -> (,8) . set2C
+    0xD2 -> (,8) . set2D
+    0xD3 -> (,8) . set2E
+    0xD4 -> (,8) . set2H
+    0xD5 -> (,8) . set2L
+    0xD6 -> (,16) . set2HL
+    0xD7 -> (,8) . set2A
+    0xD8 -> (,8) . set3B
+    0xD9 -> (,8) . set3C
+    0xDA -> (,8) . set3D
+    0xDB -> (,8) . set3E
+    0xDC -> (,8) . set3H
+    0xDD -> (,8) . set3L
+    0xDE -> (,16) . set3HL
+    0xDF -> (,8) . set3A
+    0xE0 -> (,8) . set4B
+    0xE1 -> (,8) . set4C
+    0xE2 -> (,8) . set4D
+    0xE3 -> (,8) . set4E
+    0xE4 -> (,8) . set4H
+    0xE5 -> (,8) . set4L
+    0xE6 -> (,16) . set4HL
+    0xE7 -> (,8) . set4A
+    0xE8 -> (,8) . set5B
+    0xE9 -> (,8) . set5C
+    0xEA -> (,8) . set5D
+    0xEB -> (,8) . set5E
+    0xEC -> (,8) . set5H
+    0xED -> (,8) . set5L
+    0xEE -> (,16) . set5HL
+    0xEF -> (,8) . set5A
+    0xF0 -> (,8) . set6B
+    0xF1 -> (,8) . set6C
+    0xF2 -> (,8) . set6D
+    0xF3 -> (,8) . set6E
+    0xF4 -> (,8) . set6H
+    0xF5 -> (,8) . set6L
+    0xF6 -> (,16) . set6HL
+    0xF7 -> (,8) . set6A
+    0xF8 -> (,8) . set7B
+    0xF9 -> (,8) . set7C
+    0xFA -> (,8) . set7D
+    0xFB -> (,8) . set7E
+    0xFC -> (,8) . set7H
+    0xFD -> (,8) . set7L
+    0xFE -> (,16) . set7HL
+    0xFF -> (,8) . set7A
     _ -> undefined
 
 -- NOTE: From what I currently understand, RxCA operations only SET the carry to the bit carried over, but DO NOT rotate through it,
