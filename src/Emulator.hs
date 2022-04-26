@@ -4,7 +4,7 @@ import Types
 
 import CPU (runInstruction)
 
-runCycles :: Int -> CPU -> CPU
+runCycles :: Cycles -> CPU -> CPU
 runCycles target cpu =
   if remainingCycles < 0
     then runCycles remainingCycles newCpu

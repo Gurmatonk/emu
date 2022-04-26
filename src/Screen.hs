@@ -4,6 +4,7 @@ import Control.Lens
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Interact
 
+import Clock (updateClock)
 import CPU (initCpu)
 import PPU (toByteString)
 import Emulator (runCycles)
@@ -38,7 +39,14 @@ handleInputs :: Event -> CPU -> CPU
 handleInputs _e = id -- TODO: Implement
 
 gameStep :: Float -> CPU -> CPU
-gameStep secs = runCycles (ceiling (secs * cyclesPerSecond))
+gameStep secs cpu =
+  cpu 
+    & runCycles cycles
+    & cpuMCU . mcuClock %~ updateClock cycles
+    & undefined -- Graphics
+    & undefined -- Interrupts
+  where
+    cycles = ceiling (secs * cyclesPerSecond)
 
 windowHeight :: Int
 windowHeight = 160

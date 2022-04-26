@@ -27,6 +27,7 @@ library
   exposed-modules:
       Cartridge
       CB
+      Clock
       CPU
       Emulator
       Lenses

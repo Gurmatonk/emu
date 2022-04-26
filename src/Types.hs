@@ -26,16 +26,19 @@ data CPU = CPU
 data MCU = MCU
   { _mcuRAM :: RAM,
     _mcuCartridge :: Cartridge,
-    _mcuPPU :: PPU
+    _mcuPPU :: PPU,
+    _mcuClock :: Clock
   }
     deriving (Show)
 
-type RAM = Map Word16 Word8
+type Address = Word16
+
+type RAM = Map Address Word8
 
 data Cartridge = Cartridge
   { _cartridgeRawData :: [Word8],
-    _cartridgeROM00 :: Map Word16 Word8,
-    _cartridgeROMNN :: Map Word16 Word8
+    _cartridgeROM00 :: Map Address Word8,
+    _cartridgeROMNN :: Map Address Word8
   }
   deriving (Show)
 
@@ -62,7 +65,7 @@ data PPU = PPU
 
 type Position = Word8
 
-type VRAM = Map Word16 Word8
+type VRAM = Map Address Word8
 
 data BGWindowTileDataArea = TDA8800To97FF | TDA8000To8FFF
   deriving (Show, Eq)
@@ -96,7 +99,23 @@ data PixelPalette = OBPJPalette1 | OBJPalette0
 data BGOBJPriority = OBJOverBG | BGOverOBJ
   deriving (Show, Eq)
 
+data Clock =
+  Clock
+    { _clockDivider :: Word8, -- FF04
+      _clockTimer :: Word8, -- FF05
+      _clockTimerModulo :: Word8, -- FF06
+      _clockTimerControl :: Word8, -- FF07
+      _clockElapsedCycles :: Cycles,
+      _clockElapsedCyclesMod :: Cycles
+    }
+    deriving (Show)
+
+type Cycles = Int
+
+data ClockFrequency = ClockBy16 | ClockBy64 | ClockBy256 | ClockBy1024
+
 makeLenses ''CPU
 makeLenses ''MCU
 makeLenses ''Cartridge
 makeLenses ''PPU
+makeLenses ''Clock

@@ -16,12 +16,13 @@ import Data.Word (Word8, Word16)
 import Types
 
 import Cartridge
+import Clock (initClock, clockLookup, clockWrite)
 import RAM (ramLookup, ramWrite)
 
 import PPU (initPpu, vRamLookup, vRamWrite)
 
 initMcu :: MCU
-initMcu = MCU mempty initCartridge initPpu
+initMcu = MCU mempty initCartridge initPpu initClock
 
 -- https://gbdev.io/pandocs/Memory_Map.html
 -- TODO: Mapping of lookups/writes by Address:
@@ -92,7 +93,7 @@ addressLookup a | inRomBank00 a      = fromMaybe 0xFF . view (mcuCartridge . car
                 | inProhibited a     = const 0xFF -- For now, actually shows super-weird behavior according to pandocs, see map
                 | inJoypad a         = undefined
                 | inSerialTransfer a = undefined
-                | inClock a          = undefined
+                | inClock a          = view (mcuClock . to (clockLookup a))
                 | inSound a          = undefined
                 | inWave a           = undefined
                 | inLCD a            = undefined
@@ -110,7 +111,7 @@ addressWrite a w | inRomBank00 a      = id
                  | inProhibited a     = id -- probably?
                  | inJoypad a         = undefined
                  | inSerialTransfer a = undefined
-                 | inClock a          = undefined
+                 | inClock a          = mcuClock %~ clockWrite a w
                  | inSound a          = undefined
                  | inWave a           = undefined
                  | inLCD a            = undefined

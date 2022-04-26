@@ -35,10 +35,10 @@ initCpu =
       _cpuIME = False
     }
 
-runInstruction :: CPU -> (CPU, Int)
+runInstruction :: CPU -> (CPU, Cycles)
 runInstruction = uncurry execInstruction . swap . pcLookup
 
-execInstruction :: Word8 -> CPU -> (CPU, Int)
+execInstruction :: Word8 -> CPU -> (CPU, Cycles)
 execInstruction opcode =
   case opcode of
     0x00 -> (,4) . nop
@@ -296,10 +296,12 @@ halt :: CPU -> CPU
 halt cpu = undefined
 
 -- TODO: Low power standby - whatever that is
+-- TODO: Reset AND STOP clockDivider (FF04)
 -- NOTE: From the specs this should encode as 0x1000, i.e. 2 bytes - since this is unnecessary it is 'sometimes' encoded simply as 0x10
 --       - might need to check whether PC should be incremented by 1 or 2....
 stop :: CPU -> CPU
-stop cpu = undefined & cpuPC +~ 1 -- TODO: Extra inc according to spec. Delete, maybe...
+stop cpu = 
+  undefined & cpuPC +~ 1 -- TODO: Extra inc according to spec. Delete, maybe...
 
 -- TODO: DAA
 daa :: CPU -> CPU

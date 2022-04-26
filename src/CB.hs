@@ -12,10 +12,10 @@ import Types
 import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup)
 import Utils (bitwiseValue)
 
-cb :: CPU -> (CPU, Int)
+cb :: CPU -> (CPU, Cycles)
 cb = uncurry execcb . swap . pcLookup
 
-execcb :: Word8 -> CPU -> (CPU, Int)
+execcb :: Word8 -> CPU -> (CPU, Cycles)
 execcb opcode =
   case opcode of
     0x00 -> (,8) . rlcB
