@@ -3,9 +3,8 @@ module Clock where
 import Control.Lens
 import Data.Bits (bit)
 import Data.Word (Word8)
-
-import Utils (bitwiseValue, dualBit)
 import Types
+import Utils (bitwiseValue, dualBit)
 
 initClock :: Clock
 initClock =
@@ -27,8 +26,9 @@ updateClock c clock =
   where
     updateTimer clock' =
       if clock' ^. clockTimerEnabled
-        then clock' & clockElapsedCyclesMod .~ newCyclesMod
-               & clockTimer .~ if timaOverflow then clock ^. clockTimerModulo else newTima -- TODO: Also request interrupt if timaOverflow
+        then
+          clock' & clockElapsedCyclesMod .~ newCyclesMod
+            & clockTimer .~ if timaOverflow then clock ^. clockTimerModulo else newTima -- TODO: Also request interrupt if timaOverflow
         else clock'
     newCycles = ((clock ^. clockElapsedCycles) + c) `mod` 256
     incDivider = ((clock ^. clockElapsedCycles) + c) `div` 256
@@ -65,15 +65,17 @@ clockFrequencyCycles ClockBy256 = 2560
 clockFrequencyCycles ClockBy1024 = 10240
 
 clockLookup :: Address -> Clock -> Word8
-clockLookup a | a == 0xFF04 = view clockDivider
-              | a == 0xFF05 = view clockTimer
-              | a == 0xFF06 = view clockTimerModulo
-              | a == 0xFF07 = view clockTimerControl
-              | otherwise   = undefined
+clockLookup a
+  | a == 0xFF04 = view clockDivider
+  | a == 0xFF05 = view clockTimer
+  | a == 0xFF06 = view clockTimerModulo
+  | a == 0xFF07 = view clockTimerControl
+  | otherwise = undefined
 
 clockWrite :: Address -> Word8 -> Clock -> Clock
-clockWrite a v | a == 0xFF04 = clockDivider .~ 0x00 -- writing any value just resets this
-               | a == 0xFF05 = clockTimer .~ v
-               | a == 0xFF06 = clockTimerModulo .~ v
-               | a == 0xFF07 = clockTimerControl .~ v
-               | otherwise   = undefined
+clockWrite a v
+  | a == 0xFF04 = clockDivider .~ 0x00 -- writing any value just resets this
+  | a == 0xFF05 = clockTimer .~ v
+  | a == 0xFF06 = clockTimerModulo .~ v
+  | a == 0xFF07 = clockTimerControl .~ v
+  | otherwise = undefined

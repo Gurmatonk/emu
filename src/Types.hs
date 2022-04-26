@@ -59,7 +59,8 @@ data PPU = PPU
     _ppuVRAM :: VRAM,
     _ppuBGQueue :: Seq Pixel,
     _ppuOAMQueue :: Seq Pixel,
-    _ppuPixelBuffer :: [Colour] -- final pixel buffer to be output
+    _ppuPixelBuffer :: [Colour], -- final pixel buffer to be output
+    _ppuElapsedCycles :: Cycles -- PPU takes 456 cycles to do a scanline, hence we need to keep track
   }
   deriving (Show)
 

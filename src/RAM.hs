@@ -1,16 +1,14 @@
 module RAM
-  (
-    ramLookup,
-    ramWrite
+  ( ramLookup,
+    ramWrite,
   )
-  where
+where
 
 import Control.Lens
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
-import Data.Word (Word8, Word16)
-
+import Data.Word (Word16, Word8)
 import Types
 
 -- TODO: Can we restrict this to 'actual' ram areas?

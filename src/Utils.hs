@@ -3,14 +3,15 @@
 module Utils where
 
 import Control.Lens
+import Data.Bits (bit, complement, shiftL, shiftR, (.&.), (.|.))
 import Data.Bool (bool)
-import Data.Bits ((.&.), (.|.), bit, complement, shiftL, shiftR)
-import Data.Word (Word8, Word16)
+import Data.Word (Word16, Word8)
 
 boolIso :: a -> a -> Iso' Bool a
 boolIso t f = iso from to
   where
     from True = t
+    from False = f
     to t = True
 
 -- flipping single bits like it's 1989 :)

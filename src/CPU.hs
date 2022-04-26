@@ -3,22 +3,19 @@
 
 module CPU where
 
+import CB (cb)
+import Clock (updateClock)
 import Control.Lens
 import Data.Bits (bit, complement, rotateL, rotateR, xor, (.&.), (.|.))
 import Data.Bool (bool)
 import Data.Int (Int8)
 import Data.Tuple (swap)
-import Data.Word (Word8, Word16)
-
-import Types
-
-import qualified MCU
-
-import CB (cb)
+import Data.Word (Word16, Word8)
 import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterAF, cpuRegisterBC, cpuRegisterDE, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup)
-import Utils (bitwiseValue, mkWord16, splitWord16)
-import Clock (updateClock)
+import qualified MCU
 import PPU (updatePPU)
+import Types
+import Utils (bitwiseValue, mkWord16, splitWord16)
 
 initCpu :: CPU
 initCpu =
@@ -39,10 +36,10 @@ initCpu =
 
 runInstruction :: CPU -> (CPU, Cycles)
 runInstruction cpu =
-  (newCpu & cpuMCU . mcuClock %~ updateClock cycles
-    & cpuMCU . mcuPPU %~ updatePPU cycles
-    & undefined,  -- interrupts
-      cycles)
+  ( newCpu & cpuMCU . mcuClock %~ updateClock cycles
+      & cpuMCU . mcuPPU %~ updatePPU cycles, -- TODO: Interrupt Handling should go here
+    cycles
+  )
   where
     (newCpu, cycles) = uncurry execInstruction . swap . pcLookup $ cpu
 
@@ -308,7 +305,7 @@ halt cpu = undefined
 -- NOTE: From the specs this should encode as 0x1000, i.e. 2 bytes - since this is unnecessary it is 'sometimes' encoded simply as 0x10
 --       - might need to check whether PC should be incremented by 1 or 2....
 stop :: CPU -> CPU
-stop cpu = 
+stop cpu =
   undefined & cpuPC +~ 1 -- TODO: Extra inc according to spec. Delete, maybe...
 
 -- TODO: DAA
@@ -777,17 +774,16 @@ addHLSP :: CPU -> CPU
 addHLSP = addHL cpuSP
 
 addSPr8 :: CPU -> CPU
-addSPr8 cpu = 
-  (
-    if r8 >= 0
-      then 
-        cpu' & cpuSP .~ op1 + op2 
-        & cpuFlagC .~ (op1 + op2 < op1)
-        & cpuFlagH .~ (0x0FFF .&. op1 + 0x0FFF .&. op2 > 0x0FFF)
-      else 
-        cpu' & cpuSP .~ op1 - op2 
-        & cpuFlagC .~ (op1 - op2 > op1)
-        & cpuFlagH .~ (0x0FFF .&. op1 - 0x0FFF .&. op2 < 0x0FFF) -- TODO: Is this correct??
+addSPr8 cpu =
+  ( if r8 >= 0
+      then
+        cpu' & cpuSP .~ op1 + op2
+          & cpuFlagC .~ (op1 + op2 < op1)
+          & cpuFlagH .~ (0x0FFF .&. op1 + 0x0FFF .&. op2 > 0x0FFF)
+      else
+        cpu' & cpuSP .~ op1 - op2
+          & cpuFlagC .~ (op1 - op2 > op1)
+          & cpuFlagH .~ (0x0FFF .&. op1 - 0x0FFF .&. op2 < 0x0FFF) -- TODO: Is this correct??
   )
     & cpuFlagZ .~ False
     & cpuFlagN .~ False
@@ -798,16 +794,15 @@ addSPr8 cpu =
 
 ldHLSPplusr8 :: CPU -> CPU
 ldHLSPplusr8 cpu =
-  (
-    if r8 >= 0
-      then 
-        cpu' & cpuRegisterHL .~ op1 + op2 
-        & cpuFlagC .~ (op1 + op2 < op1)
-        & cpuFlagH .~ (0x0FFF .&. op1 + 0x0FFF .&. op2 > 0x0FFF)
-      else 
-        cpu' & cpuRegisterHL .~ op1 - op2 
-        & cpuFlagC .~ (op1 - op2 > op1)
-        & cpuFlagH .~ (0x0FFF .&. op1 - 0x0FFF .&. op2 < 0x0FFF) -- TODO: Is this correct??
+  ( if r8 >= 0
+      then
+        cpu' & cpuRegisterHL .~ op1 + op2
+          & cpuFlagC .~ (op1 + op2 < op1)
+          & cpuFlagH .~ (0x0FFF .&. op1 + 0x0FFF .&. op2 > 0x0FFF)
+      else
+        cpu' & cpuRegisterHL .~ op1 - op2
+          & cpuFlagC .~ (op1 - op2 > op1)
+          & cpuFlagH .~ (0x0FFF .&. op1 - 0x0FFF .&. op2 < 0x0FFF) -- TODO: Is this correct??
   )
     & cpuFlagZ .~ False
     & cpuFlagN .~ False
@@ -903,7 +898,6 @@ adcAd8 cpu = cpu' & adcA (to (const d8))
   where
     (cpu', d8) = pcLookup cpu
 
-
 sub :: Getting Word8 CPU Word8 -> CPU -> CPU
 sub reg cpu =
   cpu & cpuRegisterA .~ op1 - op2
@@ -995,7 +989,6 @@ aAnd reg cpu =
   where
     op1 = cpu ^. cpuRegisterA
     op2 = cpu ^. reg
-
 
 andB :: CPU -> CPU
 andB = aAnd cpuRegisterB
@@ -1148,7 +1141,8 @@ cpd8 cpu = cpu' & acp (to (const d8))
 
 jrr8 :: CPU -> CPU
 jrr8 cpu =
-  cpu' & ( if r8 < 0
+  cpu'
+    & ( if r8 < 0
           then cpuPC -~ fromIntegral (abs r8)
           else cpuPC +~ fromIntegral r8
       )
@@ -1181,7 +1175,7 @@ jrNCr8 cpu =
     else fst . pcLookup $ cpu
 
 jpHL :: CPU -> CPU
-jpHL cpu = 
+jpHL cpu =
   cpu & cpuPC .~ (cpu ^. cpuRegisterHL)
 
 jpa16 :: CPU -> CPU
@@ -1233,7 +1227,7 @@ ccf cpu =
     & cpuFlagH .~ False
 
 ret :: CPU -> CPU
-ret cpu = 
+ret cpu =
   cpu & cpuPC .~ mkWord16 msb lsb
     & cpuSP +~ 2
   where
@@ -1305,11 +1299,11 @@ pushAF :: CPU -> CPU
 pushAF = push cpuRegisterAF
 
 calla16 :: CPU -> CPU
-calla16 cpu = 
-    cpu'' & mcuWrite (cpu ^. cpuSP - 1) pcmsb
-      & mcuWrite (cpu ^. cpuSP - 2) pclsb
-      & cpuSP -~ 2
-      & cpuPC .~ mkWord16 targetmsb targetlsb
+calla16 cpu =
+  cpu'' & mcuWrite (cpu ^. cpuSP - 1) pcmsb
+    & mcuWrite (cpu ^. cpuSP - 2) pclsb
+    & cpuSP -~ 2
+    & cpuPC .~ mkWord16 targetmsb targetlsb
   where
     (pcmsb, pclsb) = splitWord16 $ cpu ^. cpuPC
     (cpu', targetlsb) = pcLookup cpu

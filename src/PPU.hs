@@ -1,14 +1,14 @@
 {-# LANGUAGE RankNTypes #-}
 
-module PPU 
-  (
-    PPU,
+module PPU
+  ( PPU,
     initPpu,
     toByteString,
     updatePPU,
     vRamLookup,
-    vRamWrite
-  ) where
+    vRamWrite,
+  )
+where
 
 import Control.Lens
 import Data.Bits (bit)
@@ -18,10 +18,9 @@ import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 import qualified Data.Sequence as Seq
-import Data.Word (Word8, Word16)
-
-import Utils (bitwiseValue, boolIso, dualBit)
+import Data.Word (Word16, Word8)
 import Types
+import Utils (bitwiseValue, boolIso, dualBit)
 
 initPpu :: PPU
 initPpu =
@@ -42,16 +41,18 @@ initPpu =
       _ppuVRAM = mempty,
       _ppuBGQueue = mempty,
       _ppuOAMQueue = mempty,
-      _ppuPixelBuffer = testData
+      _ppuPixelBuffer = testData,
+      _ppuElapsedCycles = 0
     }
 
 testData :: [Colour]
-testData = [toColour i | i <- [1..]]
+testData = [toColour i | i <- [1 ..]]
   where
-    toColour i | i `mod` 3 == 0 && i `mod` 5 == 0 = Black
-               | i `mod` 3 == 0 = LightGray
-               | i `mod` 5 == 0 = DarkGray
-               | otherwise = White
+    toColour i
+      | i `mod` 3 == 0 && i `mod` 5 == 0 = Black
+      | i `mod` 3 == 0 = LightGray
+      | i `mod` 5 == 0 = DarkGray
+      | otherwise = White
 
 vRamLookup :: Word16 -> PPU -> Word8
 vRamLookup a ppu =
@@ -209,19 +210,20 @@ ppuOBJ1ColourIndex1 = lens getter setter
     setter ppu c = ppu & ppuOBJPalette1 . dualBit 3 2 .~ c ^. from colour
 
 withinWindow :: PPU -> Bool
-withinWindow ppu = 
+withinWindow ppu =
   ppu ^. ppuLCDX > ppu ^. ppuWindowX - 7
     && ppu ^. ppuLCDY > ppu ^. ppuWindowY -- Unclear whether this is needed, pandocs only mention the X coordinate...
 
-updatePPU :: Cycles -> PPU -> PPU
+updatePPU :: Cycles -> PPU -> PPU -- one scanline = 456 Cycles
 updatePPU _c _ppu = undefined
 
 pixelFetcher :: PPU -> PPU
 pixelFetcher ppu = undefined ppu
   where
-    getTile ppu | ppu ^. ppuBGTileMapArea == BTMA9C00To9FFF && not (withinWindow ppu) = 0x9C00
-                | ppu ^. ppuWindowTileMapArea == WTMA9C00To9FFF && withinWindow ppu = 0x9C00
-                | otherwise = 0x9800
+    getTile ppu
+      | ppu ^. ppuBGTileMapArea == BTMA9C00To9FFF && not (withinWindow ppu) = 0x9C00
+      | ppu ^. ppuWindowTileMapArea == WTMA9C00To9FFF && withinWindow ppu = 0x9C00
+      | otherwise = 0x9800
 
 toByteString :: PPU -> ByteString
 toByteString ppu = BS.pack . concatMap toRgba $ screen

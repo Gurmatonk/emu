@@ -7,9 +7,8 @@ import Data.Ix (inRange)
 import Data.Map (Map)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
-import Data.Word (Word8, Word16)
+import Data.Word (Word16, Word8)
 import Numeric (showHex)
-
 import Types
 
 dumpROMNN :: Cartridge -> String

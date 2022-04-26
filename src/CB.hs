@@ -5,11 +5,10 @@ module CB where
 
 import Control.Lens hiding (set)
 import Data.Bits (bit, rotateL, rotateR)
-import Data.Word (Word8)
 import Data.Tuple (swap)
-
-import Types
+import Data.Word (Word8)
 import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup)
+import Types
 import Utils (bitwiseValue)
 
 cb :: CPU -> (CPU, Cycles)

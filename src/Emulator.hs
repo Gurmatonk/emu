@@ -1,13 +1,11 @@
 module Emulator where
 
+import CPU (initCpu, runInstruction)
 import Control.Lens
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Interact
-
-import Types
-
-import CPU (initCpu, runInstruction)
 import PPU (toByteString)
+import Types
 
 runGame :: Cartridge -> IO ()
 runGame c =
@@ -32,14 +30,14 @@ background :: Color
 background = makeColorI 155 188 15 255
 
 toPicture :: CPU -> Picture
-toPicture cpu = 
+toPicture cpu =
   scale 4.0 4.0 $
-  bitmapOfByteString 
-    windowWidth 
-    windowHeight 
-    (BitmapFormat TopToBottom PxRGBA) 
-    (cpu ^. cpuMCU . mcuPPU . to toByteString)
-    True
+    bitmapOfByteString
+      windowWidth
+      windowHeight
+      (BitmapFormat TopToBottom PxRGBA)
+      (cpu ^. cpuMCU . mcuPPU . to toByteString)
+      True
 
 handleInputs :: Event -> CPU -> CPU
 handleInputs _e = id -- TODO: Implement

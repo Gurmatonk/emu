@@ -4,10 +4,8 @@ module Lenses where
 
 import Control.Lens
 import Data.Bits (bit)
-import Data.Word (Word8, Word16)
-
+import Data.Word (Word16, Word8)
 import qualified MCU
-
 import Types
 import Utils (bitwiseValue, mkWord16, splitWord16)
 

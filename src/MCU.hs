@@ -1,25 +1,21 @@
 module MCU
-  (
-    MCU,
+  ( MCU,
     addressLookup,
     addressWrite,
-    initMcu
+    initMcu,
   )
 where
 
+import Cartridge (initCartridge)
+import Clock (clockLookup, clockWrite, initClock)
 import Control.Lens
 import Data.Ix (inRange)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
-import Data.Word (Word8, Word16)
-
-import Types
-
-import Cartridge
-import Clock (initClock, clockLookup, clockWrite)
-import RAM (ramLookup, ramWrite)
-
+import Data.Word (Word16, Word8)
 import PPU (initPpu, vRamLookup, vRamWrite)
+import RAM (ramLookup, ramWrite)
+import Types
 
 initMcu :: MCU
 initMcu = MCU mempty initCartridge initPpu initClock
@@ -83,37 +79,39 @@ inBootRom :: Word16 -> Bool
 inBootRom = (==) 0xFF50
 
 addressLookup :: Word16 -> MCU -> Word8
-addressLookup a | inRomBank00 a      = fromMaybe 0xFF . view (mcuCartridge . cartridgeROM00 . to (M.lookup a))
-                | inRomBankNN a      = fromMaybe 0xFF . view (mcuCartridge . cartridgeROMNN . to (M.lookup a))
-                | inVRam a           = view (mcuPPU . to (vRamLookup a))
-                | inCartridgeRam a   = undefined
-                | inRam a            = view (mcuRAM . to (ramLookup a))
-                | inMirrorRam a      = undefined
-                | inOAM a            = undefined
-                | inProhibited a     = const 0xFF -- For now, actually shows super-weird behavior according to pandocs, see map
-                | inJoypad a         = undefined
-                | inSerialTransfer a = undefined
-                | inClock a          = view (mcuClock . to (clockLookup a))
-                | inSound a          = undefined
-                | inWave a           = undefined
-                | inLCD a            = undefined
-                | inBootRom a        = undefined
-                | otherwise          = const 0xFF
+addressLookup a
+  | inRomBank00 a = fromMaybe 0xFF . view (mcuCartridge . cartridgeROM00 . to (M.lookup a))
+  | inRomBankNN a = fromMaybe 0xFF . view (mcuCartridge . cartridgeROMNN . to (M.lookup a))
+  | inVRam a = view (mcuPPU . to (vRamLookup a))
+  | inCartridgeRam a = undefined
+  | inRam a = view (mcuRAM . to (ramLookup a))
+  | inMirrorRam a = undefined
+  | inOAM a = undefined
+  | inProhibited a = const 0xFF -- For now, actually shows super-weird behavior according to pandocs, see map
+  | inJoypad a = undefined
+  | inSerialTransfer a = undefined
+  | inClock a = view (mcuClock . to (clockLookup a))
+  | inSound a = undefined
+  | inWave a = undefined
+  | inLCD a = undefined
+  | inBootRom a = undefined
+  | otherwise = const 0xFF
 
 addressWrite :: Word16 -> Word8 -> MCU -> MCU
-addressWrite a w | inRomBank00 a      = id
-                 | inRomBankNN a      = id
-                 | inVRam a           = mcuPPU %~ vRamWrite a w
-                 | inCartridgeRam a   = undefined
-                 | inRam a            = mcuRAM %~ ramWrite a w
-                 | inMirrorRam a      = undefined
-                 | inOAM a            = undefined
-                 | inProhibited a     = id -- probably?
-                 | inJoypad a         = undefined
-                 | inSerialTransfer a = undefined
-                 | inClock a          = mcuClock %~ clockWrite a w
-                 | inSound a          = undefined
-                 | inWave a           = undefined
-                 | inLCD a            = undefined
-                 | inBootRom a        = undefined
-                 | otherwise          = id
+addressWrite a w
+  | inRomBank00 a = id
+  | inRomBankNN a = id
+  | inVRam a = mcuPPU %~ vRamWrite a w
+  | inCartridgeRam a = undefined
+  | inRam a = mcuRAM %~ ramWrite a w
+  | inMirrorRam a = undefined
+  | inOAM a = undefined
+  | inProhibited a = id -- probably?
+  | inJoypad a = undefined
+  | inSerialTransfer a = undefined
+  | inClock a = mcuClock %~ clockWrite a w
+  | inSound a = undefined
+  | inWave a = undefined
+  | inLCD a = undefined
+  | inBootRom a = undefined
+  | otherwise = id
