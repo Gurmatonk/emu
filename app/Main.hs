@@ -5,7 +5,7 @@ import qualified Data.ByteString as BS
 import Types (Cartridge)
 import qualified Cartridge as C
 
-import Screen(runGame)
+import Emulator(runGame)
 
 main :: IO ()
 main = do

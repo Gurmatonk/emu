@@ -17,6 +17,8 @@ import qualified MCU
 import CB (cb)
 import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterAF, cpuRegisterBC, cpuRegisterDE, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup)
 import Utils (bitwiseValue, mkWord16, splitWord16)
+import Clock (updateClock)
+import PPU (updatePPU)
 
 initCpu :: CPU
 initCpu =
@@ -36,7 +38,13 @@ initCpu =
     }
 
 runInstruction :: CPU -> (CPU, Cycles)
-runInstruction = uncurry execInstruction . swap . pcLookup
+runInstruction cpu =
+  (newCpu & cpuMCU . mcuClock %~ updateClock cycles
+    & cpuMCU . mcuPPU %~ updatePPU cycles
+    & undefined,  -- interrupts
+      cycles)
+  where
+    (newCpu, cycles) = uncurry execInstruction . swap . pcLookup $ cpu
 
 execInstruction :: Word8 -> CPU -> (CPU, Cycles)
 execInstruction opcode =

@@ -5,6 +5,7 @@ module PPU
     PPU,
     initPpu,
     toByteString,
+    updatePPU,
     vRamLookup,
     vRamWrite
   ) where
@@ -211,6 +212,9 @@ withinWindow :: PPU -> Bool
 withinWindow ppu = 
   ppu ^. ppuLCDX > ppu ^. ppuWindowX - 7
     && ppu ^. ppuLCDY > ppu ^. ppuWindowY -- Unclear whether this is needed, pandocs only mention the X coordinate...
+
+updatePPU :: Cycles -> PPU -> PPU
+updatePPU _c _ppu = undefined
 
 pixelFetcher :: PPU -> PPU
 pixelFetcher ppu = undefined ppu

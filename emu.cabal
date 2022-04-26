@@ -34,7 +34,6 @@ library
       MCU
       PPU
       RAM
-      Screen
       Types
       Utils
   other-modules:
