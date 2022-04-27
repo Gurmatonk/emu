@@ -2,10 +2,10 @@
 
 module Types where
 
-import Control.Lens
+import Control.Lens (makeLenses)
 import Data.Map (Map)
 import Data.Sequence (Seq)
-import Data.Word (Word8, Word16)
+import Data.Word (Word16, Word8)
 
 data CPU = CPU
   { _cpuRegisterA :: Word8,
@@ -29,7 +29,7 @@ data MCU = MCU
     _mcuPPU :: PPU,
     _mcuClock :: Clock
   }
-    deriving (Show)
+  deriving (Show)
 
 type Address = Word16
 
@@ -86,12 +86,11 @@ data Mode = HBlank | VBlank | SearchingOAM | LCDTransfer
 data Colour = White | LightGray | DarkGray | Black
   deriving (Show, Eq)
 
-data Pixel =
-  Pixel
-    { _pixelColour :: Colour,
-      _pixelPalette :: PixelPalette,
-      _pixelBGPriority :: BGOBJPriority
-    }
+data Pixel = Pixel
+  { _pixelColour :: Colour,
+    _pixelPalette :: PixelPalette,
+    _pixelBGPriority :: BGOBJPriority
+  }
   deriving (Show)
 
 data PixelPalette = OBPJPalette1 | OBJPalette0
@@ -100,16 +99,15 @@ data PixelPalette = OBPJPalette1 | OBJPalette0
 data BGOBJPriority = OBJOverBG | BGOverOBJ
   deriving (Show, Eq)
 
-data Clock =
-  Clock
-    { _clockDivider :: Word8, -- FF04
-      _clockTimer :: Word8, -- FF05
-      _clockTimerModulo :: Word8, -- FF06
-      _clockTimerControl :: Word8, -- FF07
-      _clockElapsedCycles :: Cycles,
-      _clockElapsedCyclesMod :: Cycles
-    }
-    deriving (Show)
+data Clock = Clock
+  { _clockDivider :: Word8, -- FF04
+    _clockTimer :: Word8, -- FF05
+    _clockTimerModulo :: Word8, -- FF06
+    _clockTimerControl :: Word8, -- FF07
+    _clockElapsedCycles :: Cycles,
+    _clockElapsedCyclesMod :: Cycles
+  }
+  deriving (Show)
 
 type Cycles = Int
 
