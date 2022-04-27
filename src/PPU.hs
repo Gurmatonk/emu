@@ -114,7 +114,6 @@ ppuMode1VBlankInterrupt = ppuSTAT . bitwiseValue (bit 4)
 ppuMode0HBlankInterrupt :: Lens' PPU Bool
 ppuMode0HBlankInterrupt = ppuSTAT . bitwiseValue (bit 3)
 
--- TODO: Equivalent to ppuLYC == ppuLY - "updated constantly" according to pandocs... also read only, so no memory writes on this one!
 ppuLYCLYFlag :: Lens' PPU Bool
 ppuLYCLYFlag = ppuSTAT . bitwiseValue (bit 2)
 
@@ -214,8 +213,51 @@ withinWindow ppu =
   ppu ^. ppuLCDX > ppu ^. ppuWindowX - 7
     && ppu ^. ppuLCDY > ppu ^. ppuWindowY -- Unclear whether this is needed, pandocs only mention the X coordinate...
 
-updatePPU :: Cycles -> PPU -> PPU -- one scanline = 456 Cycles
-updatePPU _c _ppu = undefined
+updatePPU :: Cycles -> PPU -> PPU
+updatePPU c ppu = 
+  if ppu ^. ppuDisplayEnableFlag
+  then execCycles c . updateLYC . updateMode $ ppu
+  else
+    -- reset things, display is off
+    ppu & ppuElapsedCycles .~ 0
+      & ppuLCDY .~ 0
+      & ppuLCDX .~ 0
+      & ppuMode .~ VBlank
+
+execCycles :: Cycles -> PPU -> PPU
+execCycles c ppu =
+  if newCycles >= 456
+  then
+    ppu & ppuElapsedCycles .~ newCycles `mod` 456
+      & ppuLCDY .~ newScanline `mod` 154 -- TODO: Request interrupt if newScanline == 144
+      & if newScanline < 144 then drawScanline else id
+  else
+    ppu & ppuElapsedCycles .~ newCycles
+  where
+    newScanline = ppu ^. ppuLCDY + 1
+    newCycles = ppu ^. ppuElapsedCycles + c
+
+updateLYC :: PPU -> PPU
+updateLYC ppu
+  | ppu ^. ppuLCDY == ppu ^. ppuLYCompare = ppu & ppuLYCLYFlag .~ True -- TODO: Request interrupt if LCDC 6 is set
+  | otherwise = ppu & ppuLYCLYFlag .~ False 
+
+updateMode :: PPU -> PPU
+updateMode ppu
+  -- Scanlines 144-153 are always VBlank TODO: Request interrupt if != oldMode and LCDC 4 is set
+  | ppu ^. ppuLCDY >= 144 = ppu & ppuMode .~ VBlank 
+  -- TODO: Request interrupt if != oldMode and LCDC 5 is set
+  | ppu ^. ppuElapsedCycles <= 80 = ppu & ppuMode .~ SearchingOAM
+  -- Note: not entirely correct, assumes fixed duration of 172 dots/cycles for SearchingOAM
+  -- see https://gbdev.io/pandocs/pixel_fifo.html
+  | ppu ^. ppuElapsedCycles <= 252 = ppu & ppuMode .~ LCDTransfer
+  -- TODO: Request interrupt if != oldMode and LCDC 3 is set
+  | otherwise = ppu & ppuMode .~ HBlank
+  where
+    oldMode = ppu ^. ppuMode
+
+drawScanline :: PPU -> PPU
+drawScanline = undefined
 
 pixelFetcher :: PPU -> PPU
 pixelFetcher ppu = undefined ppu
