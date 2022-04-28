@@ -50,15 +50,15 @@ data PPU = PPU
     _ppuLCDY :: Position, -- FF44 (R) Currently drawn scanline. 0-153 -> 144-153 = VBlank
     _ppuLCDX :: Position, -- No Equivalent register, tracks current pixel X position
     _ppuLYCompare :: Word8, -- FF45 (R/W) LY Compare. If LYC==LY, set flag in STAT and request interrupt if enabled
-    _ppuDMA :: Word8, -- TODO
+    _ppuDMA :: Word8, -- TODO FF46
     _ppuBGPalette :: Word8, -- FF47 (R/W) BG Colour Palette
     _ppuOBJPalette0 :: Word8, -- FF48 (R/W) OBJ Colour Palette 0 - Bits 1 0 are ignored, index 0 is always transparent for OBJs
     _ppuOBJPalette1 :: Word8, -- FF49 (R/W) OBJ Colour Palette 1 - Bits 1 0 are ignored, index 0 is always transparent for OBJs
     _ppuWindowY :: Position, -- FF4A (R/W) Top coordinate of Window
     _ppuWindowX :: Position, -- FF4B (R/W) Left coordinate of Window + 7 (WX == 7 is left-aligned with Screen)
     _ppuVRAM :: VRAM,
-    _ppuBGQueue :: Seq Pixel,
-    _ppuOAMQueue :: Seq Pixel,
+    _ppuBGQueue :: [Pixel],
+    _ppuOAMQueue :: [Pixel],
     _ppuPixelBuffer :: [Colour], -- final pixel buffer to be output
     _ppuElapsedCycles :: Cycles -- PPU takes 456 cycles to do a scanline, hence we need to keep track
   }
@@ -87,16 +87,12 @@ data Colour = White | LightGray | DarkGray | Black
   deriving (Show, Eq)
 
 data Pixel = Pixel
-  { _pixelColour :: Colour,
-    _pixelPalette :: PixelPalette,
-    _pixelBGPriority :: BGOBJPriority
+  { _pixelSource :: PixelSource,
+    _pixelColour :: Colour
   }
   deriving (Show)
 
-data PixelPalette = OBPJPalette1 | OBJPalette0
-  deriving (Show, Eq)
-
-data BGOBJPriority = OBJOverBG | BGOverOBJ
+data PixelSource = Background | Window | OBJPalette0 | OBJPalette1
   deriving (Show, Eq)
 
 data Clock = Clock
@@ -118,3 +114,4 @@ makeLenses ''MCU
 makeLenses ''Cartridge
 makeLenses ''PPU
 makeLenses ''Clock
+makeLenses ''Pixel

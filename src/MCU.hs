@@ -13,7 +13,7 @@ import Data.Ix (inRange)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 import Data.Word (Word16, Word8)
-import PPU (initPpu, vRamLookup, vRamWrite)
+import PPU (initPpu, lcdLookup, lcdWrite, vRamLookup, vRamWrite)
 import RAM (ramLookup, ramWrite)
 import Types
 
@@ -93,7 +93,7 @@ addressLookup a
   | inClock a = view (mcuClock . to (clockLookup a))
   | inSound a = undefined
   | inWave a = undefined
-  | inLCD a = undefined
+  | inLCD a = view (mcuPPU . to (lcdLookup a))
   | inBootRom a = undefined
   | otherwise = const 0xFF
 
@@ -112,6 +112,6 @@ addressWrite a w
   | inClock a = mcuClock %~ clockWrite a w
   | inSound a = undefined
   | inWave a = undefined
-  | inLCD a = undefined
+  | inLCD a = mcuPPU %~ lcdWrite a w
   | inBootRom a = undefined
   | otherwise = id

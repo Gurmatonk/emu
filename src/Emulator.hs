@@ -13,7 +13,7 @@ runGame c =
 
 runCycles :: Cycles -> CPU -> CPU
 runCycles target cpu =
-  if remainingCycles < 0
+  if remainingCycles > 0
     then runCycles remainingCycles newCpu
     else newCpu
   where
@@ -37,7 +37,7 @@ toPicture cpu =
       windowHeight
       (BitmapFormat TopToBottom PxRGBA)
       (cpu ^. cpuMCU . mcuPPU . to toByteString)
-      True
+      False
 
 handleInputs :: Event -> CPU -> CPU
 handleInputs _e = id -- TODO: Implement
