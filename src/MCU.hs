@@ -6,6 +6,7 @@ module MCU
   )
 where
 
+import APU (initAPU)
 import Cartridge (initCartridge)
 import Clock (clockLookup, clockWrite, initClock)
 import Control.Lens
@@ -15,10 +16,11 @@ import Data.Maybe (fromMaybe)
 import Data.Word (Word16, Word8)
 import PPU (initPpu, lcdLookup, lcdWrite, vRamLookup, vRamWrite)
 import RAM (ramLookup, ramWrite)
+import Serial (initSerial, serialLookup, serialWrite)
 import Types
 
 initMcu :: MCU
-initMcu = MCU mempty initCartridge initPpu initClock
+initMcu = MCU mempty initCartridge initPpu initClock initSerial initAPU
 
 -- https://gbdev.io/pandocs/Memory_Map.html
 -- TODO: Mapping of lookups/writes by Address:
@@ -89,7 +91,7 @@ addressLookup a
   | inOAM a = undefined
   | inProhibited a = const 0xFF -- For now, actually shows super-weird behavior according to pandocs, see map
   | inJoypad a = undefined
-  | inSerialTransfer a = undefined
+  | inSerialTransfer a = view (mcuSerial . to (serialLookup a))
   | inClock a = view (mcuClock . to (clockLookup a))
   | inSound a = undefined
   | inWave a = undefined
@@ -108,7 +110,7 @@ addressWrite a w
   | inOAM a = undefined
   | inProhibited a = id -- probably?
   | inJoypad a = undefined
-  | inSerialTransfer a = undefined
+  | inSerialTransfer a = mcuSerial %~ serialWrite a w
   | inClock a = mcuClock %~ clockWrite a w
   | inSound a = undefined
   | inWave a = undefined

@@ -27,7 +27,9 @@ data MCU = MCU
   { _mcuRAM :: RAM,
     _mcuCartridge :: Cartridge,
     _mcuPPU :: PPU,
-    _mcuClock :: Clock
+    _mcuClock :: Clock,
+    _mcuSerial :: Serial,
+    _mcuAPU :: APU
   }
   deriving (Show)
 
@@ -109,9 +111,43 @@ type Cycles = Int
 
 data ClockFrequency = ClockBy16 | ClockBy64 | ClockBy256 | ClockBy1024
 
+data Serial = Serial
+  { _serialTransfer :: Word8, -- FF01
+    _serialTransferControl :: Word8 -- FF02
+  }
+  deriving (Show)
+
+data APU = APU
+  { _apuChannel1Sweep :: Word8, -- FF10 Channel 1 Sweep Register (R/W)
+    _apuChannel1SoundWave :: Word8, -- FF11 Channel 1 Sound length/Wave pattern duty (R/W)
+    _apuChannel1VolumeEnvelope :: Word8, -- FF12 Channel 1 Volume Envelope (R/W)
+    _apuChannel1FrequencyLo :: Word8, -- FF13 Channel 1 Frequency lo (Write Only)
+    _apuChannel1FrequencyHi :: Word8, -- FF14 Channel 1 Frequency hi (R/W)
+    _apuChannel2SoundWave :: Word8, -- FF16 Channel 2 Sound Length/Wave Pattern Duty (R/W)
+    _apuChannel2VolumeEnvelope :: Word8, -- FF17 Channel 2 Volume Envelope (R/W)
+    _apuChannel2FrequencyLo :: Word8, -- FF18 Channel 2 Frequency lo data (W)
+    _apuChannel2FrequencyHi :: Word8, -- FF19 Channel 2 Frequency hi data (R/W)
+    _apuChannel3OnOff :: Word8, -- FF1A Channel 3 Sound on/off (R/W)
+    _apuChannel3SoundLength :: Word8, -- FF1B Channel 3 Sound Length (W)
+    _apuChannel3OutputLevel :: Word8, -- FF1C Channel 3 Select output level (R/W)
+    _apuChannel3FrequencyLo :: Word8, -- FF1D Channel 3 Frequency’s lower data (W)
+    _apuChannel3FrequencyHi :: Word8, -- FF1E Channel 3 Frequency’s higher data (R/W)
+    _apuChannel4SoundLength :: Word8, -- FF20 Channel 4 Sound Length (W)
+    _apuChannel4VolumeEnvelope :: Word8, -- FF21 Channel 4 Volume Envelope (R/W)
+    _apuChannel4PolyCounter :: Word8, -- FF22 Channel 4 Polynomial Counter (R/W)
+    _apuChannel4CounterConsecutive :: Word8, -- FF23 Channel 4 Counter/consecutive; Inital (R/W)
+    _apuChannelControl :: Word8, -- FF24 Channel control / ON-OFF / Volume (R/W)
+    _apuOutputSelection :: Word8, -- FF25 Selection of Sound output terminal (R/W)
+    _apuSoundOnOff :: Word8, -- FF26 Sound on/off
+    _apuWavePatternRam :: Map Address Word8 -- FF30-FF3F - Wave Pattern RAM
+  }
+  deriving (Show)
+
 makeLenses ''CPU
 makeLenses ''MCU
 makeLenses ''Cartridge
 makeLenses ''PPU
 makeLenses ''Clock
 makeLenses ''Pixel
+makeLenses ''Serial
+makeLenses ''APU

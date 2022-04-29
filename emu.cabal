@@ -25,6 +25,7 @@ source-repository head
 
 library
   exposed-modules:
+      APU
       Cartridge
       CB
       Clock
@@ -34,6 +35,7 @@ library
       MCU
       PPU
       RAM
+      Serial
       Types
       Utils
   other-modules:
