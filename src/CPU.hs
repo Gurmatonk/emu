@@ -1,7 +1,7 @@
 {-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
 
-module CPU where
+module CPU (initCpu, runInstruction) where
 
 import CB (cb)
 import Clock (updateClock)
@@ -16,6 +16,7 @@ import qualified MCU
 import PPU (updatePPU)
 import Types
 import Utils (bitwiseValue, mkWord16, splitWord16)
+import Numeric.Lens (subtracting, adding)
 
 initCpu :: CPU
 initCpu =
@@ -47,157 +48,157 @@ execInstruction :: Word8 -> CPU -> (CPU, Cycles)
 execInstruction opcode =
   case opcode of
     0x00 -> (,4) . nop
-    0x01 -> (,12) . ldBCd16
-    0x02 -> (,8) . ldBCA
-    0x03 -> (,8) . incBC
-    0x04 -> (,4) . incB
-    0x05 -> (,4) . decB
-    0x06 -> (,8) . ldBd8
+    0x01 -> (,12) . ldd16 cpuRegisterBC
+    0x02 -> (,8) . mcuWrite cpuRegisterBC cpuRegisterA
+    0x03 -> (,8) . inc16 cpuRegisterBC
+    0x04 -> (,4) . inc cpuRegisterB
+    0x05 -> (,4) . dec cpuRegisterB
+    0x06 -> (,8) . ldd8 cpuRegisterB
     0x07 -> (,4) . rlcA
     0x08 -> (,20) . lda16SP
-    0x09 -> (,8) . addHLBC
-    0x0A -> (,8) . ldABC
-    0x0B -> (,8) . decBC
-    0x0C -> (,4) . incC
-    0x0D -> (,4) . decC
-    0x0E -> (,8) . ldCd8
+    0x09 -> (,8) . addHL cpuRegisterBC
+    0x0A -> (,8) . ld cpuRegisterA (mcuLookup cpuRegisterBC)
+    0x0B -> (,8) . dec16 cpuRegisterBC
+    0x0C -> (,4) . inc cpuRegisterC
+    0x0D -> (,4) . dec cpuRegisterC
+    0x0E -> (,8) . ldd8 cpuRegisterC
     0x0F -> (,4) . rrcA
     0x10 -> (,4) . stop
-    0x11 -> (,12) . ldDEd16
-    0x12 -> (,8) . ldDEA
-    0x13 -> (,8) . incDE
-    0x14 -> (,4) . incD
-    0x15 -> (,4) . decD
-    0x16 -> (,8) . ldDd8
+    0x11 -> (,12) . ldd16 cpuRegisterDE
+    0x12 -> (,8) . mcuWrite cpuRegisterDE cpuRegisterA
+    0x13 -> (,8) . inc16 cpuRegisterDE
+    0x14 -> (,4) . inc cpuRegisterD
+    0x15 -> (,4) . dec cpuRegisterD
+    0x16 -> (,8) . ldd8 cpuRegisterD
     0x17 -> (,4) . rlA
     0x18 -> (,8) . jrr8
-    0x19 -> (,8) . addHLDE
-    0x1A -> (,8) . ldADE
-    0x1B -> (,8) . decDE
-    0x1C -> (,4) . incE
-    0x1D -> (,4) . decE
-    0x1E -> (,8) . ldEd8
+    0x19 -> (,8) . addHL cpuRegisterDE
+    0x1A -> (,8) . ld cpuRegisterA (mcuLookup cpuRegisterDE)
+    0x1B -> (,8) . dec16 cpuRegisterDE
+    0x1C -> (,4) . inc cpuRegisterE
+    0x1D -> (,4) . dec cpuRegisterE
+    0x1E -> (,8) . ldd8 cpuRegisterE
     0x1F -> (,4) . rrA
     0x20 -> (,8) . jrNZr8
-    0x21 -> (,12) . ldHLd16
+    0x21 -> (,12) . ldd16 cpuRegisterHL
     0x22 -> (,8) . ldHLplusA
-    0x23 -> (,8) . incHL
-    0x24 -> (,4) . incH
-    0x25 -> (,4) . decH
-    0x26 -> (,8) . ldHd8
+    0x23 -> (,8) . inc16 cpuRegisterHL
+    0x24 -> (,4) . inc cpuRegisterH
+    0x25 -> (,4) . dec cpuRegisterH
+    0x26 -> (,8) . ldd8 cpuRegisterH
     0x27 -> (,4) . daa
     0x28 -> (,8) . jrZr8
-    0x29 -> (,8) . addHLHL
+    0x29 -> (,8) . addHL cpuRegisterHL
     0x2A -> (,8) . ldAHLplus
-    0x2B -> (,8) . decHL
-    0x2C -> (,4) . incL
-    0x2D -> (,4) . decL
-    0x2E -> (,8) . ldLd8
+    0x2B -> (,8) . dec16 cpuRegisterHL
+    0x2C -> (,4) . inc cpuRegisterL
+    0x2D -> (,4) . dec cpuRegisterL
+    0x2E -> (,8) . ldd8 cpuRegisterL
     0x2F -> (,4) . cpl
     0x30 -> (,8) . jrNCr8
-    0x31 -> (,12) . ldSPd16
+    0x31 -> (,12) . ldd16 cpuSP
     0x32 -> (,8) . ldHLminusA
-    0x33 -> (,8) . incSP
+    0x33 -> (,8) . inc16 cpuSP
     0x34 -> (,12) . incHL_
     0x35 -> (,12) . decHL_
     0x36 -> (,12) . ldHLd8
     0x37 -> (,4) . scf
     0x38 -> (,8) . jrCr8
-    0x39 -> (,8) . addHLSP
+    0x39 -> (,8) . addHL cpuSP
     0x3A -> (,8) . ldAHLminus
-    0x3B -> (,8) . decSP
-    0x3C -> (,4) . incA
-    0x3D -> (,4) . decA
-    0x3E -> (,8) . ldAd8
+    0x3B -> (,8) . dec16 cpuSP
+    0x3C -> (,4) . inc cpuRegisterA
+    0x3D -> (,4) . dec cpuRegisterA
+    0x3E -> (,8) . ldd8 cpuRegisterA
     0x3F -> (,4) . ccf
-    0x40 -> (,4) . ldBB
-    0x41 -> (,4) . ldBC
-    0x42 -> (,4) . ldBD
-    0x43 -> (,4) . ldBE
-    0x44 -> (,4) . ldBH
-    0x45 -> (,4) . ldBL
-    0x46 -> (,8) . ldBHL
-    0x47 -> (,4) . ldBA
-    0x48 -> (,4) . ldCB
-    0x49 -> (,4) . ldCC
-    0x4A -> (,4) . ldCD
-    0x4B -> (,4) . ldCE
-    0x4C -> (,4) . ldCH
-    0x4D -> (,4) . ldCL
-    0x4E -> (,8) . ldCHL
-    0x4F -> (,4) . ldCA
-    0x50 -> (,4) . ldDB
-    0x51 -> (,4) . ldDC
-    0x52 -> (,4) . ldDD
-    0x53 -> (,4) . ldDE
-    0x54 -> (,4) . ldDH
-    0x55 -> (,4) . ldDL
-    0x56 -> (,8) . ldDHL
-    0x57 -> (,4) . ldDA
-    0x58 -> (,4) . ldEB
-    0x59 -> (,4) . ldEC
-    0x5A -> (,4) . ldED
-    0x5B -> (,4) . ldEE
-    0x5C -> (,4) . ldEH
-    0x5D -> (,4) . ldEL
-    0x5E -> (,8) . ldEHL
-    0x5F -> (,4) . ldEA
-    0x60 -> (,4) . ldHB
-    0x61 -> (,4) . ldHC
-    0x62 -> (,4) . ldHD
-    0x63 -> (,4) . ldHE
-    0x64 -> (,4) . ldHH
-    0x65 -> (,4) . ldHL
-    0x66 -> (,8) . ldHHL
-    0x67 -> (,4) . ldHA
-    0x68 -> (,4) . ldLB
-    0x69 -> (,4) . ldLC
-    0x6A -> (,4) . ldLD
-    0x6B -> (,4) . ldLE
-    0x6C -> (,4) . ldLH
-    0x6D -> (,4) . ldLL
-    0x6E -> (,8) . ldLHL
-    0x6F -> (,4) . ldLA
-    0x70 -> (,8) . ldHLB
-    0x71 -> (,8) . ldHLC
-    0x72 -> (,8) . ldHLD
-    0x73 -> (,8) . ldHLE
-    0x74 -> (,8) . ldHLH
-    0x75 -> (,8) . ldHLL
+    0x40 -> (,4) . ld cpuRegisterB cpuRegisterB
+    0x41 -> (,4) . ld cpuRegisterB cpuRegisterC
+    0x42 -> (,4) . ld cpuRegisterB cpuRegisterD
+    0x43 -> (,4) . ld cpuRegisterB cpuRegisterE
+    0x44 -> (,4) . ld cpuRegisterB cpuRegisterH
+    0x45 -> (,4) . ld cpuRegisterB cpuRegisterL
+    0x46 -> (,8) . ld cpuRegisterB (mcuLookup cpuRegisterHL)
+    0x47 -> (,4) . ld cpuRegisterB cpuRegisterA
+    0x48 -> (,4) . ld cpuRegisterC cpuRegisterB
+    0x49 -> (,4) . ld cpuRegisterC cpuRegisterC
+    0x4A -> (,4) . ld cpuRegisterC cpuRegisterD
+    0x4B -> (,4) . ld cpuRegisterC cpuRegisterE
+    0x4C -> (,4) . ld cpuRegisterC cpuRegisterH
+    0x4D -> (,4) . ld cpuRegisterC cpuRegisterL
+    0x4E -> (,8) . ld cpuRegisterC (mcuLookup cpuRegisterHL)
+    0x4F -> (,4) . ld cpuRegisterC cpuRegisterA
+    0x50 -> (,4) . ld cpuRegisterD cpuRegisterB
+    0x51 -> (,4) . ld cpuRegisterD cpuRegisterC
+    0x52 -> (,4) . ld cpuRegisterD cpuRegisterD
+    0x53 -> (,4) . ld cpuRegisterD cpuRegisterE
+    0x54 -> (,4) . ld cpuRegisterD cpuRegisterH
+    0x55 -> (,4) . ld cpuRegisterD cpuRegisterL
+    0x56 -> (,8) . ld cpuRegisterD (mcuLookup cpuRegisterHL)
+    0x57 -> (,4) . ld cpuRegisterD cpuRegisterA
+    0x58 -> (,4) . ld cpuRegisterE cpuRegisterB
+    0x59 -> (,4) . ld cpuRegisterE cpuRegisterC
+    0x5A -> (,4) . ld cpuRegisterE cpuRegisterD
+    0x5B -> (,4) . ld cpuRegisterE cpuRegisterE
+    0x5C -> (,4) . ld cpuRegisterE cpuRegisterH
+    0x5D -> (,4) . ld cpuRegisterE cpuRegisterL
+    0x5E -> (,8) . ld cpuRegisterE (mcuLookup cpuRegisterHL)
+    0x5F -> (,4) . ld cpuRegisterE cpuRegisterA
+    0x60 -> (,4) . ld cpuRegisterH cpuRegisterB
+    0x61 -> (,4) . ld cpuRegisterH cpuRegisterC
+    0x62 -> (,4) . ld cpuRegisterH cpuRegisterD
+    0x63 -> (,4) . ld cpuRegisterH cpuRegisterE
+    0x64 -> (,4) . ld cpuRegisterH cpuRegisterH
+    0x65 -> (,4) . ld cpuRegisterH cpuRegisterL
+    0x66 -> (,8) . ld cpuRegisterH (mcuLookup cpuRegisterHL)
+    0x67 -> (,4) . ld cpuRegisterH cpuRegisterA
+    0x68 -> (,4) . ld cpuRegisterL cpuRegisterB
+    0x69 -> (,4) . ld cpuRegisterL cpuRegisterC
+    0x6A -> (,4) . ld cpuRegisterL cpuRegisterD
+    0x6B -> (,4) . ld cpuRegisterL cpuRegisterE
+    0x6C -> (,4) . ld cpuRegisterL cpuRegisterH
+    0x6D -> (,4) . ld cpuRegisterL cpuRegisterL
+    0x6E -> (,8) . ld cpuRegisterL (mcuLookup cpuRegisterHL)
+    0x6F -> (,4) . ld cpuRegisterL cpuRegisterA
+    0x70 -> (,8) . mcuWrite cpuRegisterHL cpuRegisterB
+    0x71 -> (,8) . mcuWrite cpuRegisterHL cpuRegisterC
+    0x72 -> (,8) . mcuWrite cpuRegisterHL cpuRegisterD
+    0x73 -> (,8) . mcuWrite cpuRegisterHL cpuRegisterE
+    0x74 -> (,8) . mcuWrite cpuRegisterHL cpuRegisterH
+    0x75 -> (,8) . mcuWrite cpuRegisterHL cpuRegisterL
     0x76 -> (,4) . halt
-    0x77 -> (,8) . ldHLA
-    0x78 -> (,4) . ldAB
-    0x79 -> (,4) . ldAC
-    0x7A -> (,4) . ldAD
-    0x7B -> (,4) . ldAE
-    0x7C -> (,4) . ldAH
-    0x7D -> (,4) . ldAL
-    0x7E -> (,8) . ldAHL
-    0x7F -> (,4) . ldAA
-    0x80 -> (,4) . addAB
-    0x81 -> (,4) . addAC
-    0x82 -> (,4) . addAD
-    0x83 -> (,4) . addAE
-    0x84 -> (,4) . addAH
-    0x85 -> (,4) . addAL
-    0x86 -> (,8) . addAHL
-    0x87 -> (,4) . addAA
-    0x88 -> (,4) . adcAB
-    0x89 -> (,4) . adcAC
-    0x8A -> (,4) . adcAD
-    0x8B -> (,4) . adcAE
-    0x8C -> (,4) . adcAH
-    0x8D -> (,4) . adcAL
-    0x8E -> (,8) . adcAHL
-    0x8F -> (,4) . adcAA
-    0x90 -> (,4) . subB
-    0x91 -> (,4) . subC
-    0x92 -> (,4) . subD
-    0x93 -> (,4) . subE
-    0x94 -> (,4) . subH
-    0x95 -> (,4) . subL
-    0x96 -> (,8) . subHL
-    0x97 -> (,4) . subA
+    0x77 -> (,8) . mcuWrite cpuRegisterHL cpuRegisterA
+    0x78 -> (,4) . ld cpuRegisterA cpuRegisterB
+    0x79 -> (,4) . ld cpuRegisterA cpuRegisterC
+    0x7A -> (,4) . ld cpuRegisterA cpuRegisterD
+    0x7B -> (,4) . ld cpuRegisterA cpuRegisterE
+    0x7C -> (,4) . ld cpuRegisterA cpuRegisterH
+    0x7D -> (,4) . ld cpuRegisterA cpuRegisterL
+    0x7E -> (,8) . ld cpuRegisterA (mcuLookup cpuRegisterHL)
+    0x7F -> (,4) . ld cpuRegisterA cpuRegisterA
+    0x80 -> (,4) . addA cpuRegisterB
+    0x81 -> (,4) . addA cpuRegisterC
+    0x82 -> (,4) . addA cpuRegisterD
+    0x83 -> (,4) . addA cpuRegisterE
+    0x84 -> (,4) . addA cpuRegisterH
+    0x85 -> (,4) . addA cpuRegisterL
+    0x86 -> (,8) . addA (mcuLookup cpuRegisterHL)
+    0x87 -> (,4) . addA cpuRegisterA
+    0x88 -> (,4) . adcA cpuRegisterB
+    0x89 -> (,4) . adcA cpuRegisterC
+    0x8A -> (,4) . adcA cpuRegisterD
+    0x8B -> (,4) . adcA cpuRegisterE
+    0x8C -> (,4) . adcA cpuRegisterH
+    0x8D -> (,4) . adcA cpuRegisterL
+    0x8E -> (,8) . adcA (mcuLookup cpuRegisterHL)
+    0x8F -> (,4) . adcA cpuRegisterA
+    0x90 -> (,4) . sub cpuRegisterB
+    0x91 -> (,4) . sub cpuRegisterC
+    0x92 -> (,4) . sub cpuRegisterD
+    0x93 -> (,4) . sub cpuRegisterE
+    0x94 -> (,4) . sub cpuRegisterH
+    0x95 -> (,4) . sub cpuRegisterL
+    0x96 -> (,8) . sub (mcuLookup cpuRegisterHL)
+    0x97 -> (,4) . sub cpuRegisterA
     0x98 -> (,4) . sbcB
     0x99 -> (,4) . sbcC
     0x9A -> (,4) . sbcD
@@ -311,7 +312,7 @@ stop cpu =
 -- Note: Mainly transliterated from https://forums.nesdev.org/viewtopic.php?t=15944
 --       I have no idea what I'm doing
 daa :: CPU -> CPU
-daa cpu = 
+daa cpu =
   cpu & correctA
     & (\cpu' -> cpu' & cpuFlagZ .~ (cpu' ^. cpuRegisterA == 0))
     & cpuFlagH .~ False
@@ -331,226 +332,27 @@ daa cpu =
             )
 
 
-
-ldBA :: CPU -> CPU
-ldBA cpu = cpu & cpuRegisterB .~ (cpu ^. cpuRegisterA)
-
-ldBB :: CPU -> CPU
-ldBB cpu = cpu & cpuRegisterB .~ (cpu ^. cpuRegisterB)
-
-ldBC :: CPU -> CPU
-ldBC cpu = cpu & cpuRegisterB .~ (cpu ^. cpuRegisterC)
-
-ldBD :: CPU -> CPU
-ldBD cpu = cpu & cpuRegisterB .~ (cpu ^. cpuRegisterD)
-
-ldBE :: CPU -> CPU
-ldBE cpu = cpu & cpuRegisterB .~ (cpu ^. cpuRegisterE)
-
-ldBH :: CPU -> CPU
-ldBH cpu = cpu & cpuRegisterB .~ (cpu ^. cpuRegisterH)
-
-ldBL :: CPU -> CPU
-ldBL cpu = cpu & cpuRegisterB .~ (cpu ^. cpuRegisterL)
-
-ldBHL :: CPU -> CPU
-ldBHL cpu = cpu & cpuRegisterB .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
-
-ldCA :: CPU -> CPU
-ldCA cpu = cpu & cpuRegisterC .~ (cpu ^. cpuRegisterA)
-
-ldCB :: CPU -> CPU
-ldCB cpu = cpu & cpuRegisterC .~ (cpu ^. cpuRegisterB)
-
-ldCC :: CPU -> CPU
-ldCC cpu = cpu & cpuRegisterC .~ (cpu ^. cpuRegisterC)
-
-ldCD :: CPU -> CPU
-ldCD cpu = cpu & cpuRegisterC .~ (cpu ^. cpuRegisterD)
-
-ldCE :: CPU -> CPU
-ldCE cpu = cpu & cpuRegisterC .~ (cpu ^. cpuRegisterE)
-
-ldCH :: CPU -> CPU
-ldCH cpu = cpu & cpuRegisterC .~ (cpu ^. cpuRegisterH)
-
-ldCL :: CPU -> CPU
-ldCL cpu = cpu & cpuRegisterC .~ (cpu ^. cpuRegisterL)
-
-ldCHL :: CPU -> CPU
-ldCHL cpu = cpu & cpuRegisterC .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
-
-ldDA :: CPU -> CPU
-ldDA cpu = cpu & cpuRegisterD .~ (cpu ^. cpuRegisterA)
-
-ldDB :: CPU -> CPU
-ldDB cpu = cpu & cpuRegisterD .~ (cpu ^. cpuRegisterB)
-
-ldDC :: CPU -> CPU
-ldDC cpu = cpu & cpuRegisterD .~ (cpu ^. cpuRegisterC)
-
-ldDD :: CPU -> CPU
-ldDD cpu = cpu & cpuRegisterD .~ (cpu ^. cpuRegisterD)
-
-ldDE :: CPU -> CPU
-ldDE cpu = cpu & cpuRegisterD .~ (cpu ^. cpuRegisterE)
-
-ldDH :: CPU -> CPU
-ldDH cpu = cpu & cpuRegisterD .~ (cpu ^. cpuRegisterH)
-
-ldDL :: CPU -> CPU
-ldDL cpu = cpu & cpuRegisterD .~ (cpu ^. cpuRegisterL)
-
-ldDHL :: CPU -> CPU
-ldDHL cpu = cpu & cpuRegisterD .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
-
-ldEA :: CPU -> CPU
-ldEA cpu = cpu & cpuRegisterE .~ (cpu ^. cpuRegisterA)
-
-ldEB :: CPU -> CPU
-ldEB cpu = cpu & cpuRegisterE .~ (cpu ^. cpuRegisterB)
-
-ldEC :: CPU -> CPU
-ldEC cpu = cpu & cpuRegisterE .~ (cpu ^. cpuRegisterC)
-
-ldED :: CPU -> CPU
-ldED cpu = cpu & cpuRegisterE .~ (cpu ^. cpuRegisterD)
-
-ldEE :: CPU -> CPU
-ldEE cpu = cpu & cpuRegisterE .~ (cpu ^. cpuRegisterE)
-
-ldEH :: CPU -> CPU
-ldEH cpu = cpu & cpuRegisterE .~ (cpu ^. cpuRegisterH)
-
-ldEL :: CPU -> CPU
-ldEL cpu = cpu & cpuRegisterE .~ (cpu ^. cpuRegisterL)
-
-ldEHL :: CPU -> CPU
-ldEHL cpu = cpu & cpuRegisterE .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
-
-ldHA :: CPU -> CPU
-ldHA cpu = cpu & cpuRegisterH .~ (cpu ^. cpuRegisterA)
-
-ldHB :: CPU -> CPU
-ldHB cpu = cpu & cpuRegisterH .~ (cpu ^. cpuRegisterB)
-
-ldHC :: CPU -> CPU
-ldHC cpu = cpu & cpuRegisterH .~ (cpu ^. cpuRegisterC)
-
-ldHD :: CPU -> CPU
-ldHD cpu = cpu & cpuRegisterH .~ (cpu ^. cpuRegisterD)
-
-ldHE :: CPU -> CPU
-ldHE cpu = cpu & cpuRegisterH .~ (cpu ^. cpuRegisterE)
-
-ldHH :: CPU -> CPU
-ldHH cpu = cpu & cpuRegisterH .~ (cpu ^. cpuRegisterH)
-
-ldHL :: CPU -> CPU
-ldHL cpu = cpu & cpuRegisterH .~ (cpu ^. cpuRegisterL)
-
-ldHHL :: CPU -> CPU
-ldHHL cpu = cpu & cpuRegisterH .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
-
-ldLA :: CPU -> CPU
-ldLA cpu = cpu & cpuRegisterL .~ (cpu ^. cpuRegisterA)
-
-ldLB :: CPU -> CPU
-ldLB cpu = cpu & cpuRegisterL .~ (cpu ^. cpuRegisterB)
-
-ldLC :: CPU -> CPU
-ldLC cpu = cpu & cpuRegisterL .~ (cpu ^. cpuRegisterC)
-
-ldLD :: CPU -> CPU
-ldLD cpu = cpu & cpuRegisterL .~ (cpu ^. cpuRegisterD)
-
-ldLE :: CPU -> CPU
-ldLE cpu = cpu & cpuRegisterL .~ (cpu ^. cpuRegisterE)
-
-ldLH :: CPU -> CPU
-ldLH cpu = cpu & cpuRegisterL .~ (cpu ^. cpuRegisterH)
-
-ldLL :: CPU -> CPU
-ldLL cpu = cpu & cpuRegisterL .~ (cpu ^. cpuRegisterL)
-
-ldLHL :: CPU -> CPU
-ldLHL cpu = cpu & cpuRegisterL .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
-
-ldHLA :: CPU -> CPU
-ldHLA cpu = mcuWrite (cpu ^. cpuRegisterHL) (cpu ^. cpuRegisterA) cpu
-
-ldHLB :: CPU -> CPU
-ldHLB cpu = mcuWrite (cpu ^. cpuRegisterHL) (cpu ^. cpuRegisterB) cpu
-
-ldHLC :: CPU -> CPU
-ldHLC cpu = mcuWrite (cpu ^. cpuRegisterHL) (cpu ^. cpuRegisterC) cpu
-
-ldHLD :: CPU -> CPU
-ldHLD cpu = mcuWrite (cpu ^. cpuRegisterHL) (cpu ^. cpuRegisterD) cpu
-
-ldHLE :: CPU -> CPU
-ldHLE cpu = mcuWrite (cpu ^. cpuRegisterHL) (cpu ^. cpuRegisterE) cpu
-
-ldHLH :: CPU -> CPU
-ldHLH cpu = mcuWrite (cpu ^. cpuRegisterHL) (cpu ^. cpuRegisterH) cpu
-
-ldHLL :: CPU -> CPU
-ldHLL cpu = mcuWrite (cpu ^. cpuRegisterHL) (cpu ^. cpuRegisterL) cpu
-
-ldAA :: CPU -> CPU
-ldAA cpu = cpu & cpuRegisterA .~ (cpu ^. cpuRegisterA)
-
-ldAB :: CPU -> CPU
-ldAB cpu = cpu & cpuRegisterA .~ (cpu ^. cpuRegisterB)
-
-ldAC :: CPU -> CPU
-ldAC cpu = cpu & cpuRegisterA .~ (cpu ^. cpuRegisterC)
-
-ldAD :: CPU -> CPU
-ldAD cpu = cpu & cpuRegisterA .~ (cpu ^. cpuRegisterD)
-
-ldAE :: CPU -> CPU
-ldAE cpu = cpu & cpuRegisterA .~ (cpu ^. cpuRegisterE)
-
-ldAH :: CPU -> CPU
-ldAH cpu = cpu & cpuRegisterA .~ (cpu ^. cpuRegisterH)
-
-ldAL :: CPU -> CPU
-ldAL cpu = cpu & cpuRegisterA .~ (cpu ^. cpuRegisterL)
-
-ldAHL :: CPU -> CPU
-ldAHL cpu = cpu & cpuRegisterA .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
-
-ldABC :: CPU -> CPU
-ldABC cpu = cpu & cpuRegisterA .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterBC))
-
-ldADE :: CPU -> CPU
-ldADE cpu = cpu & cpuRegisterA .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterDE))
-
-ldBCA :: CPU -> CPU
-ldBCA cpu = mcuWrite (cpu ^. cpuRegisterBC) (cpu ^. cpuRegisterA) cpu
-
-ldDEA :: CPU -> CPU
-ldDEA cpu = mcuWrite (cpu ^. cpuRegisterDE) (cpu ^. cpuRegisterA) cpu
+ld :: Setter' CPU Word8 -> Getter CPU Word8 -> CPU -> CPU
+ld str gtr cpu = cpu & str .~ (cpu ^. gtr)
 
 ldHLplusA :: CPU -> CPU
 ldHLplusA cpu =
-  mcuWrite (cpu ^. cpuRegisterHL) (cpu ^. cpuRegisterA) cpu
+  cpu & mcuWrite cpuRegisterHL cpuRegisterA
     & cpuRegisterHL +~ 1
 
 ldHLminusA :: CPU -> CPU
 ldHLminusA cpu =
-  mcuWrite (cpu ^. cpuRegisterHL) (cpu ^. cpuRegisterA) cpu
+  cpu & mcuWrite cpuRegisterHL cpuRegisterA
     & cpuRegisterHL -~ 1
 
 ldAHLplus :: CPU -> CPU
 ldAHLplus cpu =
-  cpu & cpuRegisterA .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
+  cpu & cpuRegisterA .~ (cpu ^. mcuLookup cpuRegisterHL)
     & cpuRegisterHL +~ 1
 
 ldAHLminus :: CPU -> CPU
 ldAHLminus cpu =
-  cpu & cpuRegisterA .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
+  cpu & cpuRegisterA .~ (cpu ^. mcuLookup cpuRegisterHL)
     & cpuRegisterHL -~ 1
 
 ldd8 :: Lens' CPU Word8 -> CPU -> CPU
@@ -558,29 +360,8 @@ ldd8 reg cpu = cpu' & reg .~ d8
   where
     (cpu', d8) = pcLookup cpu
 
-ldBd8 :: CPU -> CPU
-ldBd8 = ldd8 cpuRegisterB
-
-ldCd8 :: CPU -> CPU
-ldCd8 = ldd8 cpuRegisterC
-
-ldDd8 :: CPU -> CPU
-ldDd8 = ldd8 cpuRegisterD
-
-ldEd8 :: CPU -> CPU
-ldEd8 = ldd8 cpuRegisterE
-
-ldHd8 :: CPU -> CPU
-ldHd8 = ldd8 cpuRegisterH
-
-ldLd8 :: CPU -> CPU
-ldLd8 = ldd8 cpuRegisterL
-
-ldAd8 :: CPU -> CPU
-ldAd8 = ldd8 cpuRegisterA
-
 ldHLd8 :: CPU -> CPU
-ldHLd8 cpu = mcuWrite (cpu' ^. cpuRegisterHL) d8 cpu'
+ldHLd8 cpu = mcuWrite cpuRegisterHL (to . const $ d8) cpu'
   where
     (cpu', d8) = pcLookup cpu
 
@@ -590,33 +371,23 @@ ldd16 reg cpu = cpu'' & reg .~ mkWord16 msb lsb
     (cpu', lsb) = pcLookup cpu
     (cpu'', msb) = pcLookup cpu'
 
-ldBCd16 :: CPU -> CPU
-ldBCd16 = ldd16 cpuRegisterBC
-
-ldDEd16 :: CPU -> CPU
-ldDEd16 = ldd16 cpuRegisterDE
-
-ldHLd16 :: CPU -> CPU
-ldHLd16 = ldd16 cpuRegisterHL
-
-ldSPd16 :: CPU -> CPU
-ldSPd16 = ldd16 cpuSP
-
 lda16SP :: CPU -> CPU
-lda16SP cpu = mcuWrite (mkWord16 msb lsb + 1) spmsb . mcuWrite (mkWord16 msb lsb) splsb $ cpu''
+lda16SP cpu = 
+  mcuWrite (to . const $ mkWord16 msb lsb + 1) (to . const $ spmsb) 
+    . mcuWrite (to . const $ mkWord16 msb lsb) (to . const $ splsb) $ cpu''
   where
     (spmsb, splsb) = splitWord16 (cpu ^. cpuSP)
     (cpu', lsb) = pcLookup cpu
     (cpu'', msb) = pcLookup cpu'
 
 lda16A :: CPU -> CPU
-lda16A cpu = mcuWrite (mkWord16 msb lsb) (cpu ^. cpuRegisterA) cpu''
+lda16A cpu = mcuWrite (to . const $ mkWord16 msb lsb) cpuRegisterA cpu''
   where
     (cpu', lsb) = pcLookup cpu
     (cpu'', msb) = pcLookup cpu'
 
 ldAa16 :: CPU -> CPU
-ldAa16 cpu = cpu'' & cpuRegisterA .~ (cpu'' ^. mcuLookup (mkWord16 msb lsb))
+ldAa16 cpu = cpu'' & cpuRegisterA .~ (cpu'' ^. mcuLookup (to . const $ mkWord16 msb lsb))
   where
     (cpu', lsb) = pcLookup cpu
     (cpu'', msb) = pcLookup cpu'
@@ -624,29 +395,11 @@ ldAa16 cpu = cpu'' & cpuRegisterA .~ (cpu'' ^. mcuLookup (mkWord16 msb lsb))
 ldSPHL :: CPU -> CPU
 ldSPHL cpu = cpu & cpuSP .~ (cpu ^. cpuRegisterHL)
 
-incBC :: CPU -> CPU
-incBC cpu = cpu & cpuRegisterBC +~ 1
+inc16 :: Setter' CPU Word16 -> CPU -> CPU
+inc16 reg = reg +~ 1
 
-incDE :: CPU -> CPU
-incDE cpu = cpu & cpuRegisterDE +~ 1
-
-incHL :: CPU -> CPU
-incHL cpu = cpu & cpuRegisterHL +~ 1
-
-incSP :: CPU -> CPU
-incSP cpu = cpu & cpuSP +~ 1
-
-decBC :: CPU -> CPU
-decBC cpu = cpu & cpuRegisterBC -~ 1
-
-decDE :: CPU -> CPU
-decDE cpu = cpu & cpuRegisterDE -~ 1
-
-decHL :: CPU -> CPU
-decHL cpu = cpu & cpuRegisterHL -~ 1
-
-decSP :: CPU -> CPU
-decSP cpu = cpu & cpuSP -~ 1
+dec16 :: Setter' CPU Word16 -> CPU -> CPU
+dec16 reg = reg -~ 1
 
 -- NOTE: The rotation operations from the 1-Byte instruction set differ from those in CB in that - according to the docs -
 --       CB rotations CAN set the Z flag, while these here by definition just reset it.
@@ -701,36 +454,15 @@ inc reg cpu =
     & cpuFlagZ .~ (cpu ^. reg + 1 == 0x00)
     & cpuFlagN .~ False
 
-incB :: CPU -> CPU
-incB = inc cpuRegisterB
-
-incC :: CPU -> CPU
-incC = inc cpuRegisterC
-
-incD :: CPU -> CPU
-incD = inc cpuRegisterD
-
-incE :: CPU -> CPU
-incE = inc cpuRegisterE
-
-incH :: CPU -> CPU
-incH = inc cpuRegisterH
-
-incL :: CPU -> CPU
-incL = inc cpuRegisterL
-
-incA :: CPU -> CPU
-incA = inc cpuRegisterA
-
 incHL_ :: CPU -> CPU
 incHL_ cpu =
-  mcuWrite (cpu ^. address) (val + 1) cpu
-    & cpuFlagH .~ (0x0F .&. val + 1 > 0x0F)
-    & cpuFlagZ .~ (val + 1 == 0x00)
+  cpu & mcuWrite cpuRegisterHL val
+    & cpuFlagH .~ (0x0F .&. (cpu ^. val) > 0x0F)
+    & cpuFlagZ .~ (cpu ^. val == 0x00)
     & cpuFlagN .~ False
   where
-    val = cpu ^. mcuLookup (cpu ^. address)
-    address = cpuRegisterHL
+    val :: Getter CPU Word8
+    val = mcuLookup cpuRegisterHL . adding 1
 
 dec :: Lens' CPU Word8 -> CPU -> CPU
 dec reg cpu =
@@ -739,36 +471,15 @@ dec reg cpu =
     & cpuFlagZ .~ (cpu ^. reg - 1 == 0x00)
     & cpuFlagN .~ True
 
-decB :: CPU -> CPU
-decB = dec cpuRegisterB
-
-decC :: CPU -> CPU
-decC = dec cpuRegisterC
-
-decD :: CPU -> CPU
-decD = dec cpuRegisterD
-
-decE :: CPU -> CPU
-decE = dec cpuRegisterE
-
-decH :: CPU -> CPU
-decH = dec cpuRegisterH
-
-decL :: CPU -> CPU
-decL = dec cpuRegisterL
-
-decA :: CPU -> CPU
-decA = dec cpuRegisterA
-
 decHL_ :: CPU -> CPU
 decHL_ cpu =
-  mcuWrite (cpu ^. address) (val - 1) cpu
-    & cpuFlagH .~ (0x0F .&. val == 0x00)
-    & cpuFlagZ .~ (val - 1 == 0x00)
+  cpu & mcuWrite cpuRegisterHL (val . subtracting 1)
+    & cpuFlagH .~ (0x0F .&. (cpu ^. val) == 0x00)
+    & cpuFlagZ .~ ((cpu ^. val . subtracting 1) == 0x00)
     & cpuFlagN .~ True
   where
-    val = cpu ^. mcuLookup (cpu ^. address)
-    address = cpuRegisterHL
+    val :: Getter CPU Word8
+    val = mcuLookup cpuRegisterHL
 
 addHL :: Lens' CPU Word16 -> CPU -> CPU
 addHL reg cpu =
@@ -779,18 +490,6 @@ addHL reg cpu =
   where
     op1 = cpu ^. cpuRegisterHL
     op2 = cpu ^. reg
-
-addHLBC :: CPU -> CPU
-addHLBC = addHL cpuRegisterBC
-
-addHLDE :: CPU -> CPU
-addHLDE = addHL cpuRegisterDE
-
-addHLHL :: CPU -> CPU
-addHLHL = addHL cpuRegisterHL
-
-addHLSP :: CPU -> CPU
-addHLSP = addHL cpuSP
 
 addSPr8 :: CPU -> CPU
 addSPr8 cpu =
@@ -841,30 +540,6 @@ addA reg cpu =
     op1 = cpu ^. cpuRegisterA
     op2 = cpu ^. reg
 
-addAB :: CPU -> CPU
-addAB = addA cpuRegisterB
-
-addAC :: CPU -> CPU
-addAC = addA cpuRegisterC
-
-addAD :: CPU -> CPU
-addAD = addA cpuRegisterD
-
-addAE :: CPU -> CPU
-addAE = addA cpuRegisterE
-
-addAH :: CPU -> CPU
-addAH = addA cpuRegisterH
-
-addAL :: CPU -> CPU
-addAL = addA cpuRegisterL
-
-addAHL :: CPU -> CPU
-addAHL cpu = addA (mcuLookup (cpu ^. cpuRegisterHL)) cpu
-
-addAA :: CPU -> CPU
-addAA = addA cpuRegisterA
-
 addAd8 :: CPU -> CPU
 addAd8 cpu =
   cpu' & cpuRegisterA .~ op1 + op2
@@ -888,30 +563,6 @@ adcA reg cpu =
     op2 = cpu ^. reg
     cy = bool 0 1 $ cpu ^. cpuFlagC
 
-adcAB :: CPU -> CPU
-adcAB = adcA cpuRegisterB
-
-adcAC :: CPU -> CPU
-adcAC = adcA cpuRegisterC
-
-adcAD :: CPU -> CPU
-adcAD = adcA cpuRegisterD
-
-adcAE :: CPU -> CPU
-adcAE = adcA cpuRegisterE
-
-adcAH :: CPU -> CPU
-adcAH = adcA cpuRegisterH
-
-adcAL :: CPU -> CPU
-adcAL = adcA cpuRegisterL
-
-adcAHL :: CPU -> CPU
-adcAHL cpu = adcA (mcuLookup (cpu ^. cpuRegisterHL)) cpu
-
-adcAA :: CPU -> CPU
-adcAA = adcA cpuRegisterA
-
 adcAd8 :: CPU -> CPU
 adcAd8 cpu = cpu' & adcA (to (const d8))
   where
@@ -927,30 +578,6 @@ sub reg cpu =
   where
     op1 = cpu ^. cpuRegisterA
     op2 = cpu ^. reg
-
-subB :: CPU -> CPU
-subB = sub cpuRegisterB
-
-subC :: CPU -> CPU
-subC = sub cpuRegisterC
-
-subD :: CPU -> CPU
-subD = sub cpuRegisterD
-
-subE :: CPU -> CPU
-subE = sub cpuRegisterE
-
-subH :: CPU -> CPU
-subH = sub cpuRegisterH
-
-subL :: CPU -> CPU
-subL = sub cpuRegisterL
-
-subHL :: CPU -> CPU
-subHL cpu = sub (mcuLookup (cpu ^. cpuRegisterHL)) cpu
-
-subA :: CPU -> CPU
-subA = sub cpuRegisterA
 
 subd8 :: CPU -> CPU
 subd8 cpu = cpu' & sub (to (const d8))
@@ -988,7 +615,7 @@ sbcL :: CPU -> CPU
 sbcL = sbc cpuRegisterL
 
 sbcHL :: CPU -> CPU
-sbcHL cpu = sbc (mcuLookup (cpu ^. cpuRegisterHL)) cpu
+sbcHL = sbc (mcuLookup cpuRegisterHL)
 
 sbcA :: CPU -> CPU
 sbcA = sbc cpuRegisterA
@@ -1028,7 +655,7 @@ andL :: CPU -> CPU
 andL = aAnd cpuRegisterL
 
 andHL :: CPU -> CPU
-andHL cpu = aAnd (mcuLookup (cpu ^. cpuRegisterHL)) cpu
+andHL = aAnd (mcuLookup cpuRegisterHL)
 
 andA :: CPU -> CPU
 andA = aAnd cpuRegisterA
@@ -1068,7 +695,7 @@ xorL :: CPU -> CPU
 xorL = aXor cpuRegisterL
 
 xorHL :: CPU -> CPU
-xorHL cpu = aXor (mcuLookup (cpu ^. cpuRegisterHL)) cpu
+xorHL = aXor (mcuLookup cpuRegisterHL)
 
 xorA :: CPU -> CPU
 xorA = aXor cpuRegisterA
@@ -1108,7 +735,7 @@ orL :: CPU -> CPU
 orL = aor cpuRegisterL
 
 orHL :: CPU -> CPU
-orHL cpu = aor (mcuLookup (cpu ^. cpuRegisterHL)) cpu
+orHL = aor (mcuLookup cpuRegisterHL)
 
 orA :: CPU -> CPU
 orA = aor cpuRegisterA
@@ -1148,7 +775,7 @@ cpL :: CPU -> CPU
 cpL = acp cpuRegisterL
 
 cpHL :: CPU -> CPU
-cpHL cpu = acp (mcuLookup (cpu ^. cpuRegisterHL)) cpu
+cpHL = acp (mcuLookup cpuRegisterHL)
 
 cpA :: CPU -> CPU
 cpA = acp cpuRegisterA
@@ -1250,8 +877,8 @@ ret cpu =
   cpu & cpuPC .~ mkWord16 msb lsb
     & cpuSP +~ 2
   where
-    lsb = cpu ^. mcuLookup (cpu ^. cpuSP)
-    msb = cpu ^. mcuLookup (cpu ^. cpuSP + 1)
+    lsb = cpu ^. mcuLookup cpuSP
+    msb = cpu ^. mcuLookup (cpuSP . adding 1)
 
 retZ :: CPU -> CPU
 retZ cpu =
@@ -1282,8 +909,8 @@ pop reg cpu =
   cpu & reg .~ mkWord16 msb lsb
     & cpuSP +~ 2
   where
-    lsb = cpu ^. mcuLookup (cpu ^. cpuSP)
-    msb = cpu ^. mcuLookup (cpu ^. cpuSP + 1)
+    lsb = cpu ^. mcuLookup cpuSP
+    msb = cpu ^. mcuLookup (cpuSP . adding 1)
 
 popBC :: CPU -> CPU
 popBC = pop cpuRegisterBC
@@ -1299,11 +926,9 @@ popAF = pop cpuRegisterAF
 
 push :: Lens' CPU Word16 -> CPU -> CPU
 push reg cpu =
-  cpu & mcuWrite (cpu ^. cpuSP - 1) msb
-    & mcuWrite (cpu ^. cpuSP - 2) lsb
+  cpu & mcuWrite (cpuSP . subtracting 1) (reg . to splitWord16 . _1)
+    & mcuWrite (cpuSP . subtracting 2) (reg . to splitWord16 . _2)
     & cpuSP -~ 2
-  where
-    (msb, lsb) = splitWord16 $ cpu ^. reg
 
 pushBC :: CPU -> CPU
 pushBC = push cpuRegisterBC
@@ -1319,12 +944,11 @@ pushAF = push cpuRegisterAF
 
 calla16 :: CPU -> CPU
 calla16 cpu =
-  cpu'' & mcuWrite (cpu ^. cpuSP - 1) pcmsb
-    & mcuWrite (cpu ^. cpuSP - 2) pclsb
+  cpu'' & mcuWrite (cpuSP . subtracting 1) (cpuPC . to splitWord16 . _1)
+    & mcuWrite (cpuSP . subtracting 2) (cpuPC . to splitWord16 . _2)
     & cpuSP -~ 2
     & cpuPC .~ mkWord16 targetmsb targetlsb
   where
-    (pcmsb, pclsb) = splitWord16 $ cpu ^. cpuPC
     (cpu', targetlsb) = pcLookup cpu
     (cpu'', targetmsb) = pcLookup cpu'
 
@@ -1354,12 +978,10 @@ callNCa16 cpu =
 
 rst :: Word8 -> CPU -> CPU
 rst lsb cpu =
-  cpu & mcuWrite (cpu ^. cpuSP - 1) pcmsb
-    & mcuWrite (cpu ^. cpuSP - 2) pclsb
+  cpu & mcuWrite (cpuSP . subtracting 1) (cpuPC . to splitWord16 . _1)
+    & mcuWrite (cpuSP . subtracting 2) (cpuPC . to splitWord16 . _2)
     & cpuSP -~ 2
     & cpuPC .~ mkWord16 0x00 lsb
-  where
-    (pcmsb, pclsb) = splitWord16 $ cpu ^. cpuPC
 
 rst00 :: CPU -> CPU
 rst00 = rst 0x00
@@ -1397,23 +1019,23 @@ reti = ret . ei
 -- Note: The pandocs classify ldhCA and ldhAC as 2-Byte-instructions - however it is not at all clear where the read of the 2nd byte should occur
 --       This being two byte is either a bug in the cpu or a mistake in the pandocs - currently going for the latter
 ldhCA :: CPU -> CPU
-ldhCA cpu = mcuWrite (mkWord16 0xFF lsb) (cpu ^. cpuRegisterA) cpu
+ldhCA cpu = mcuWrite (to . const $ mkWord16 0xFF lsb) cpuRegisterA cpu
   where
     lsb = cpu ^. cpuRegisterC
 
 ldhAC :: CPU -> CPU
 ldhAC cpu = cpu & cpuRegisterA .~ newVal
   where
-    newVal = cpu ^. mcuLookup (mkWord16 0xFF lsb)
+    newVal = cpu ^. mcuLookup (to . const $ mkWord16 0xFF lsb)
     lsb = cpu ^. cpuRegisterC
 
 ldha8A :: CPU -> CPU
-ldha8A cpu = cpu' & mcuWrite (mkWord16 0xFF lsb) (cpu' ^. cpuRegisterA)
+ldha8A cpu = cpu' & mcuWrite (to . const $ mkWord16 0xFF lsb) cpuRegisterA
   where
     (cpu', lsb) = pcLookup cpu
 
 ldhAa8 :: CPU -> CPU
 ldhAa8 cpu = cpu' & cpuRegisterA .~ newVal
   where
-    newVal = cpu' ^. mcuLookup (mkWord16 0xFF lsb)
+    newVal = cpu' ^. mcuLookup (to . const $ mkWord16 0xFF lsb)
     (cpu', lsb) = pcLookup cpu

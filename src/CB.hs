@@ -260,13 +260,13 @@ rlcL = rlc cpuRegisterL
 rlcHL :: CPU -> CPU
 rlcHL cpu =
   cpu & cpuFlagC .~ old7th
-    & mcuWrite (cpu ^. cpuRegisterHL) newVal
+    & mcuWrite cpuRegisterHL (to . const $ newVal)
     & cpuFlagZ .~ (newVal == 0x00)
     & cpuFlagN .~ False
     & cpuFlagH .~ False
   where
     newVal = oldVal `rotateL` 1
-    oldVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL)
+    oldVal = cpu ^. mcuLookup cpuRegisterHL
     old7th = oldVal ^. bitwiseValue (bit 7)
 
 rlcA :: CPU -> CPU
@@ -303,13 +303,13 @@ rrcL = rrc cpuRegisterL
 rrcHL :: CPU -> CPU
 rrcHL cpu =
   cpu & cpuFlagC .~ old0th
-    & mcuWrite (cpu ^. cpuRegisterHL) newVal
+    & mcuWrite cpuRegisterHL (to . const $ newVal)
     & cpuFlagZ .~ (newVal == 0x00)
     & cpuFlagN .~ False
     & cpuFlagH .~ False
   where
     newVal = oldVal `rotateR` 1
-    oldVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL)
+    oldVal = cpu ^. mcuLookup cpuRegisterHL
     old0th = oldVal ^. bitwiseValue (bit 0)
 
 rrcA :: CPU -> CPU
@@ -486,45 +486,46 @@ res6A = res 6 cpuRegisterA
 res7A :: CPU -> CPU
 res7A = res 7 cpuRegisterA
 
+
 res0HL :: CPU -> CPU
-res0HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+res0HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 0) .~ False
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 0) .~ False
 
 res1HL :: CPU -> CPU
-res1HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+res1HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 1) .~ False
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 1) .~ False
 
 res2HL :: CPU -> CPU
-res2HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+res2HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 2) .~ False
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 2) .~ False
 
 res3HL :: CPU -> CPU
-res3HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+res3HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 3) .~ False
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 3) .~ False
 
 res4HL :: CPU -> CPU
-res4HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+res4HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 4) .~ False
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 4) .~ False
 
 res5HL :: CPU -> CPU
-res5HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+res5HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 5) .~ False
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 5) .~ False
 
 res6HL :: CPU -> CPU
-res6HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+res6HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 6) .~ False
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 6) .~ False
 
 res7HL :: CPU -> CPU
-res7HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+res7HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 7) .~ False
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 7) .~ False
 
 set :: Int -> Lens' CPU Word8 -> CPU -> CPU
 set b reg = reg . bitwiseValue (bit b) .~ True
@@ -699,44 +700,44 @@ set7A :: CPU -> CPU
 set7A = set 7 cpuRegisterA
 
 set0HL :: CPU -> CPU
-set0HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+set0HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 0) .~ True
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 0) .~ True
 
 set1HL :: CPU -> CPU
-set1HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+set1HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 1) .~ True
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 1) .~ True
 
 set2HL :: CPU -> CPU
-set2HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+set2HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 2) .~ True
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 2) .~ True
 
 set3HL :: CPU -> CPU
-set3HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+set3HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 3) .~ True
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 3) .~ True
 
 set4HL :: CPU -> CPU
-set4HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+set4HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 4) .~ True
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 4) .~ True
 
 set5HL :: CPU -> CPU
-set5HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+set5HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 5) .~ True
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 5) .~ True
 
 set6HL :: CPU -> CPU
-set6HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+set6HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 6) .~ True
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 6) .~ True
 
 set7HL :: CPU -> CPU
-set7HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
+set7HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
   where
-    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 7) .~ True
+    newVal = cpu ^. mcuLookup cpuRegisterHL & bitwiseValue (bit 7) .~ True
 
 testBit :: Int -> Getter CPU Word8 -> CPU -> CPU
 testBit b reg cpu = 
@@ -745,5 +746,4 @@ testBit b reg cpu =
     & cpuFlagH .~ True
 
 testBitHL :: Int -> CPU -> CPU
-testBitHL b cpu =
-  testBit b (mcuLookup (cpu ^. cpuRegisterHL)) cpu
+testBitHL b = testBit b (mcuLookup cpuRegisterHL)

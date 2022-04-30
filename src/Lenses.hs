@@ -46,10 +46,10 @@ cpuRegisterAF = combinedRegister cpuRegisterA cpuRegisterF
 pcLookup :: CPU -> (CPU, Word8)
 pcLookup cpu = (cpu & cpuPC +~ 1, res)
   where
-    res = cpu ^. mcuLookup (cpu ^. cpuPC)
+    res = cpu ^. mcuLookup cpuPC
 
-mcuLookup :: Word16 -> Getter CPU Word8
-mcuLookup w = to (\c -> MCU.addressLookup w (c ^. cpuMCU))
+mcuLookup :: Getter CPU Word16 -> Getter CPU Word8
+mcuLookup w = to (\c -> MCU.addressLookup (c ^. w) (c ^. cpuMCU))
 
-mcuWrite :: Word16 -> Word8 -> CPU -> CPU
-mcuWrite a w cpu = cpu & cpuMCU .~ MCU.addressWrite a w (cpu ^. cpuMCU)
+mcuWrite :: Getter CPU Word16 -> Getter CPU Word8 -> CPU -> CPU
+mcuWrite a v cpu = cpu & cpuMCU .~ MCU.addressWrite (cpu ^. a) (cpu ^. v) (cpu ^. cpuMCU)
