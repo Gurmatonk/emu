@@ -308,14 +308,33 @@ stop :: CPU -> CPU
 stop cpu =
   undefined & cpuPC +~ 1 -- TODO: Extra inc according to spec. Delete, maybe...
 
--- TODO: DAA
+-- Note: Mainly transliterated from https://forums.nesdev.org/viewtopic.php?t=15944
+--       I have no idea what I'm doing
 daa :: CPU -> CPU
-daa cpu = undefined
+daa cpu = 
+  cpu & correctA
+    & (\cpu' -> cpu' & cpuFlagZ .~ (cpu' ^. cpuRegisterA == 0))
+    & cpuFlagH .~ False
+  where
+    correctA cpu' =
+      if cpu' ^. cpuFlagN
+        then cpu' & cpuRegisterA -~ bool 0x00 0x60 (cpu' ^. cpuFlagC) & cpuRegisterA -~ bool 0x00 0x6 (cpu' ^. cpuFlagH)
+        else
+          cpu' &
+            (\cpu'' -> if cpu'' ^. cpuFlagC || cpu'' ^. cpuRegisterA > 0x99
+              then cpu'' & cpuRegisterA +~ 0x60 & cpuFlagC .~ True
+              else cpu''
+            )
+            & (\cpu'' -> if cpu'' ^. cpuFlagH || (cpu'' ^. cpuRegisterA .&. 0x0F) > 0x09
+                then cpu'' & cpuRegisterA +~ 0x6
+                else cpu''
+            )
+
+
 
 ldBA :: CPU -> CPU
 ldBA cpu = cpu & cpuRegisterB .~ (cpu ^. cpuRegisterA)
 
--- Not sure if it actually needs to be implemented in terms other than nop, but here we go
 ldBB :: CPU -> CPU
 ldBB cpu = cpu & cpuRegisterB .~ (cpu ^. cpuRegisterB)
 
@@ -335,7 +354,7 @@ ldBL :: CPU -> CPU
 ldBL cpu = cpu & cpuRegisterB .~ (cpu ^. cpuRegisterL)
 
 ldBHL :: CPU -> CPU
-ldBHL cpu = cpu & cpuRegisterB .~ mcuLookup (cpu ^. cpuRegisterHL) cpu
+ldBHL cpu = cpu & cpuRegisterB .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
 
 ldCA :: CPU -> CPU
 ldCA cpu = cpu & cpuRegisterC .~ (cpu ^. cpuRegisterA)
@@ -359,7 +378,7 @@ ldCL :: CPU -> CPU
 ldCL cpu = cpu & cpuRegisterC .~ (cpu ^. cpuRegisterL)
 
 ldCHL :: CPU -> CPU
-ldCHL cpu = cpu & cpuRegisterC .~ mcuLookup (cpu ^. cpuRegisterHL) cpu
+ldCHL cpu = cpu & cpuRegisterC .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
 
 ldDA :: CPU -> CPU
 ldDA cpu = cpu & cpuRegisterD .~ (cpu ^. cpuRegisterA)
@@ -383,7 +402,7 @@ ldDL :: CPU -> CPU
 ldDL cpu = cpu & cpuRegisterD .~ (cpu ^. cpuRegisterL)
 
 ldDHL :: CPU -> CPU
-ldDHL cpu = cpu & cpuRegisterD .~ mcuLookup (cpu ^. cpuRegisterHL) cpu
+ldDHL cpu = cpu & cpuRegisterD .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
 
 ldEA :: CPU -> CPU
 ldEA cpu = cpu & cpuRegisterE .~ (cpu ^. cpuRegisterA)
@@ -407,7 +426,7 @@ ldEL :: CPU -> CPU
 ldEL cpu = cpu & cpuRegisterE .~ (cpu ^. cpuRegisterL)
 
 ldEHL :: CPU -> CPU
-ldEHL cpu = cpu & cpuRegisterE .~ mcuLookup (cpu ^. cpuRegisterHL) cpu
+ldEHL cpu = cpu & cpuRegisterE .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
 
 ldHA :: CPU -> CPU
 ldHA cpu = cpu & cpuRegisterH .~ (cpu ^. cpuRegisterA)
@@ -431,7 +450,7 @@ ldHL :: CPU -> CPU
 ldHL cpu = cpu & cpuRegisterH .~ (cpu ^. cpuRegisterL)
 
 ldHHL :: CPU -> CPU
-ldHHL cpu = cpu & cpuRegisterH .~ mcuLookup (cpu ^. cpuRegisterHL) cpu
+ldHHL cpu = cpu & cpuRegisterH .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
 
 ldLA :: CPU -> CPU
 ldLA cpu = cpu & cpuRegisterL .~ (cpu ^. cpuRegisterA)
@@ -455,7 +474,7 @@ ldLL :: CPU -> CPU
 ldLL cpu = cpu & cpuRegisterL .~ (cpu ^. cpuRegisterL)
 
 ldLHL :: CPU -> CPU
-ldLHL cpu = cpu & cpuRegisterL .~ mcuLookup (cpu ^. cpuRegisterHL) cpu
+ldLHL cpu = cpu & cpuRegisterL .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
 
 ldHLA :: CPU -> CPU
 ldHLA cpu = mcuWrite (cpu ^. cpuRegisterHL) (cpu ^. cpuRegisterA) cpu
@@ -500,13 +519,13 @@ ldAL :: CPU -> CPU
 ldAL cpu = cpu & cpuRegisterA .~ (cpu ^. cpuRegisterL)
 
 ldAHL :: CPU -> CPU
-ldAHL cpu = cpu & cpuRegisterA .~ mcuLookup (cpu ^. cpuRegisterHL) cpu
+ldAHL cpu = cpu & cpuRegisterA .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
 
 ldABC :: CPU -> CPU
-ldABC cpu = cpu & cpuRegisterA .~ mcuLookup (cpu ^. cpuRegisterBC) cpu
+ldABC cpu = cpu & cpuRegisterA .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterBC))
 
 ldADE :: CPU -> CPU
-ldADE cpu = cpu & cpuRegisterA .~ mcuLookup (cpu ^. cpuRegisterDE) cpu
+ldADE cpu = cpu & cpuRegisterA .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterDE))
 
 ldBCA :: CPU -> CPU
 ldBCA cpu = mcuWrite (cpu ^. cpuRegisterBC) (cpu ^. cpuRegisterA) cpu
@@ -526,12 +545,12 @@ ldHLminusA cpu =
 
 ldAHLplus :: CPU -> CPU
 ldAHLplus cpu =
-  cpu & cpuRegisterA .~ mcuLookup (cpu ^. cpuRegisterHL) cpu
+  cpu & cpuRegisterA .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
     & cpuRegisterHL +~ 1
 
 ldAHLminus :: CPU -> CPU
 ldAHLminus cpu =
-  cpu & cpuRegisterA .~ mcuLookup (cpu ^. cpuRegisterHL) cpu
+  cpu & cpuRegisterA .~ (cpu ^. mcuLookup (cpu ^. cpuRegisterHL))
     & cpuRegisterHL -~ 1
 
 ldd8 :: Lens' CPU Word8 -> CPU -> CPU
@@ -597,7 +616,7 @@ lda16A cpu = mcuWrite (mkWord16 msb lsb) (cpu ^. cpuRegisterA) cpu''
     (cpu'', msb) = pcLookup cpu'
 
 ldAa16 :: CPU -> CPU
-ldAa16 cpu = cpu'' & cpuRegisterA .~ mcuLookup (mkWord16 msb lsb) cpu''
+ldAa16 cpu = cpu'' & cpuRegisterA .~ (cpu'' ^. mcuLookup (mkWord16 msb lsb))
   where
     (cpu', lsb) = pcLookup cpu
     (cpu'', msb) = pcLookup cpu'
@@ -710,7 +729,7 @@ incHL_ cpu =
     & cpuFlagZ .~ (val + 1 == 0x00)
     & cpuFlagN .~ False
   where
-    val = mcuLookup (cpu ^. address) cpu
+    val = cpu ^. mcuLookup (cpu ^. address)
     address = cpuRegisterHL
 
 dec :: Lens' CPU Word8 -> CPU -> CPU
@@ -748,7 +767,7 @@ decHL_ cpu =
     & cpuFlagZ .~ (val - 1 == 0x00)
     & cpuFlagN .~ True
   where
-    val = mcuLookup (cpu ^. address) cpu
+    val = cpu ^. mcuLookup (cpu ^. address)
     address = cpuRegisterHL
 
 addHL :: Lens' CPU Word16 -> CPU -> CPU
@@ -841,7 +860,7 @@ addAL :: CPU -> CPU
 addAL = addA cpuRegisterL
 
 addAHL :: CPU -> CPU
-addAHL cpu = addA (cpuRegisterHL . to (`mcuLookup` cpu)) cpu
+addAHL cpu = addA (mcuLookup (cpu ^. cpuRegisterHL)) cpu
 
 addAA :: CPU -> CPU
 addAA = addA cpuRegisterA
@@ -888,7 +907,7 @@ adcAL :: CPU -> CPU
 adcAL = adcA cpuRegisterL
 
 adcAHL :: CPU -> CPU
-adcAHL cpu = adcA (cpuRegisterHL . to (`mcuLookup` cpu)) cpu
+adcAHL cpu = adcA (mcuLookup (cpu ^. cpuRegisterHL)) cpu
 
 adcAA :: CPU -> CPU
 adcAA = adcA cpuRegisterA
@@ -928,7 +947,7 @@ subL :: CPU -> CPU
 subL = sub cpuRegisterL
 
 subHL :: CPU -> CPU
-subHL cpu = sub (cpuRegisterHL . to (`mcuLookup` cpu)) cpu
+subHL cpu = sub (mcuLookup (cpu ^. cpuRegisterHL)) cpu
 
 subA :: CPU -> CPU
 subA = sub cpuRegisterA
@@ -969,7 +988,7 @@ sbcL :: CPU -> CPU
 sbcL = sbc cpuRegisterL
 
 sbcHL :: CPU -> CPU
-sbcHL cpu = sbc (cpuRegisterHL . to (`mcuLookup` cpu)) cpu
+sbcHL cpu = sbc (mcuLookup (cpu ^. cpuRegisterHL)) cpu
 
 sbcA :: CPU -> CPU
 sbcA = sbc cpuRegisterA
@@ -1009,7 +1028,7 @@ andL :: CPU -> CPU
 andL = aAnd cpuRegisterL
 
 andHL :: CPU -> CPU
-andHL cpu = aAnd (cpuRegisterHL . to (`mcuLookup` cpu)) cpu
+andHL cpu = aAnd (mcuLookup (cpu ^. cpuRegisterHL)) cpu
 
 andA :: CPU -> CPU
 andA = aAnd cpuRegisterA
@@ -1049,7 +1068,7 @@ xorL :: CPU -> CPU
 xorL = aXor cpuRegisterL
 
 xorHL :: CPU -> CPU
-xorHL cpu = aXor (cpuRegisterHL . to (`mcuLookup` cpu)) cpu
+xorHL cpu = aXor (mcuLookup (cpu ^. cpuRegisterHL)) cpu
 
 xorA :: CPU -> CPU
 xorA = aXor cpuRegisterA
@@ -1089,7 +1108,7 @@ orL :: CPU -> CPU
 orL = aor cpuRegisterL
 
 orHL :: CPU -> CPU
-orHL cpu = aor (cpuRegisterHL . to (`mcuLookup` cpu)) cpu
+orHL cpu = aor (mcuLookup (cpu ^. cpuRegisterHL)) cpu
 
 orA :: CPU -> CPU
 orA = aor cpuRegisterA
@@ -1129,7 +1148,7 @@ cpL :: CPU -> CPU
 cpL = acp cpuRegisterL
 
 cpHL :: CPU -> CPU
-cpHL cpu = acp (cpuRegisterHL . to (`mcuLookup` cpu)) cpu
+cpHL cpu = acp (mcuLookup (cpu ^. cpuRegisterHL)) cpu
 
 cpA :: CPU -> CPU
 cpA = acp cpuRegisterA
@@ -1231,8 +1250,8 @@ ret cpu =
   cpu & cpuPC .~ mkWord16 msb lsb
     & cpuSP +~ 2
   where
-    lsb = mcuLookup (cpu ^. cpuSP) cpu
-    msb = mcuLookup (cpu ^. cpuSP + 1) cpu
+    lsb = cpu ^. mcuLookup (cpu ^. cpuSP)
+    msb = cpu ^. mcuLookup (cpu ^. cpuSP + 1)
 
 retZ :: CPU -> CPU
 retZ cpu =
@@ -1263,8 +1282,8 @@ pop reg cpu =
   cpu & reg .~ mkWord16 msb lsb
     & cpuSP +~ 2
   where
-    lsb = mcuLookup (cpu ^. cpuSP) cpu
-    msb = mcuLookup (cpu ^. cpuSP + 1) cpu
+    lsb = cpu ^. mcuLookup (cpu ^. cpuSP)
+    msb = cpu ^. mcuLookup (cpu ^. cpuSP + 1)
 
 popBC :: CPU -> CPU
 popBC = pop cpuRegisterBC
@@ -1385,7 +1404,7 @@ ldhCA cpu = mcuWrite (mkWord16 0xFF lsb) (cpu ^. cpuRegisterA) cpu
 ldhAC :: CPU -> CPU
 ldhAC cpu = cpu & cpuRegisterA .~ newVal
   where
-    newVal = mcuLookup (mkWord16 0xFF lsb) cpu
+    newVal = cpu ^. mcuLookup (mkWord16 0xFF lsb)
     lsb = cpu ^. cpuRegisterC
 
 ldha8A :: CPU -> CPU
@@ -1396,5 +1415,5 @@ ldha8A cpu = cpu' & mcuWrite (mkWord16 0xFF lsb) (cpu' ^. cpuRegisterA)
 ldhAa8 :: CPU -> CPU
 ldhAa8 cpu = cpu' & cpuRegisterA .~ newVal
   where
-    newVal = mcuLookup (mkWord16 0xFF lsb) cpu'
+    newVal = cpu' ^. mcuLookup (mkWord16 0xFF lsb)
     (cpu', lsb) = pcLookup cpu

@@ -5,6 +5,8 @@ module PPU
     initPpu,
     lcdLookup,
     lcdWrite,
+    oamLookup,
+    oamWrite,
     toByteString,
     updatePPU,
     vRamLookup,
@@ -44,6 +46,7 @@ initPpu =
       _ppuWindowY = 0x00,
       _ppuWindowX = 0x00,
       _ppuVRAM = mempty,
+      _ppuOAM = mempty,
       _ppuBGQueue = mempty,
       _ppuOAMQueue = mempty,
       _ppuPixelBuffer = testData,
@@ -58,6 +61,22 @@ testData = [toColour i | i <- [1 ..]]
       | i `mod` 3 == 0 = LightGray
       | i `mod` 5 == 0 = DarkGray
       | otherwise = White
+
+oamLookup :: Address -> PPU -> Word8
+oamLookup a ppu =
+  case ppu ^. ppuMode of
+    HBlank -> fromMaybe 0xFF . view (ppuOAM . at a) $ ppu
+    VBlank -> fromMaybe 0xFF . view (ppuOAM . at a) $ ppu
+    SearchingOAM -> 0xFF
+    LCDTransfer -> 0xFF
+
+oamWrite :: Address -> Word8 -> PPU -> PPU
+oamWrite a w ppu = 
+  case ppu ^. ppuMode of
+    HBlank -> ppu & ppuOAM . at a ?~ w
+    VBlank -> ppu & ppuOAM . at a ?~ w
+    SearchingOAM -> ppu
+    LCDTransfer -> ppu
 
 vRamLookup :: Word16 -> PPU -> Word8
 vRamLookup a ppu =

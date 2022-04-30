@@ -29,13 +29,15 @@ data MCU = MCU
     _mcuPPU :: PPU,
     _mcuClock :: Clock,
     _mcuSerial :: Serial,
-    _mcuAPU :: APU
+    _mcuAPU :: APU,
+    _mcuJoypad :: Joypad
   }
   deriving (Show)
 
 type Address = Word16
 
 type RAM = Map Address Word8
+type Joypad = Word8
 
 data Cartridge = Cartridge
   { _cartridgeRawData :: [Word8],
@@ -58,7 +60,8 @@ data PPU = PPU
     _ppuOBJPalette1 :: Word8, -- FF49 (R/W) OBJ Colour Palette 1 - Bits 1 0 are ignored, index 0 is always transparent for OBJs
     _ppuWindowY :: Position, -- FF4A (R/W) Top coordinate of Window
     _ppuWindowX :: Position, -- FF4B (R/W) Left coordinate of Window + 7 (WX == 7 is left-aligned with Screen)
-    _ppuVRAM :: VRAM,
+    _ppuVRAM :: VRAM, -- 8000-9FFF
+    _ppuOAM :: OAM, -- FE00-FE9F
     _ppuBGQueue :: [Pixel],
     _ppuOAMQueue :: [Pixel],
     _ppuPixelBuffer :: [Colour], -- final pixel buffer to be output
@@ -69,6 +72,8 @@ data PPU = PPU
 type Position = Word8
 
 type VRAM = Map Address Word8
+
+type OAM = Map Address Word8
 
 data BGWindowTileDataArea = TDA8800To97FF | TDA8000To8FFF
   deriving (Show, Eq)

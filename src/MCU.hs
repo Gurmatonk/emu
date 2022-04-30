@@ -6,7 +6,7 @@ module MCU
   )
 where
 
-import APU (initAPU)
+import APU (initAPU, apuLookup, apuWrite)
 import Cartridge (initCartridge)
 import Clock (clockLookup, clockWrite, initClock)
 import Control.Lens
@@ -14,13 +14,13 @@ import Data.Ix (inRange)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 import Data.Word (Word16, Word8)
-import PPU (initPpu, lcdLookup, lcdWrite, vRamLookup, vRamWrite)
+import PPU (initPpu, lcdLookup, lcdWrite, oamLookup, oamWrite, vRamLookup, vRamWrite)
 import RAM (ramLookup, ramWrite)
 import Serial (initSerial, serialLookup, serialWrite)
 import Types
 
 initMcu :: MCU
-initMcu = MCU mempty initCartridge initPpu initClock initSerial initAPU
+initMcu = MCU mempty initCartridge initPpu initClock initSerial initAPU 0xCF
 
 -- https://gbdev.io/pandocs/Memory_Map.html
 -- TODO: Mapping of lookups/writes by Address:
@@ -68,11 +68,8 @@ inSerialTransfer = inRange (0xFF01, 0xFF02)
 inClock :: Word16 -> Bool
 inClock = inRange (0xFF04, 0xFF07)
 
-inSound :: Word16 -> Bool
-inSound = inRange (0xFF10, 0xFF26)
-
-inWave :: Word16 -> Bool
-inWave = inRange (0xFF30, 0xFF3F)
+inAPU :: Word16 -> Bool
+inAPU = inRange (0xFF10, 0xFF3F)
 
 inLCD :: Word16 -> Bool
 inLCD = inRange (0xFF40, 0xFF4B)
@@ -88,13 +85,12 @@ addressLookup a
   | inCartridgeRam a = undefined
   | inRam a = view (mcuRAM . to (ramLookup a))
   | inMirrorRam a = undefined
-  | inOAM a = undefined
+  | inOAM a = view (mcuPPU . to (oamLookup a))
   | inProhibited a = const 0xFF -- For now, actually shows super-weird behavior according to pandocs, see map
-  | inJoypad a = undefined
+  | inJoypad a = view mcuJoypad
   | inSerialTransfer a = view (mcuSerial . to (serialLookup a))
   | inClock a = view (mcuClock . to (clockLookup a))
-  | inSound a = undefined
-  | inWave a = undefined
+  | inAPU a = view (mcuAPU . to (apuLookup a))
   | inLCD a = view (mcuPPU . to (lcdLookup a))
   | inBootRom a = undefined
   | otherwise = const 0xFF
@@ -107,13 +103,12 @@ addressWrite a w
   | inCartridgeRam a = undefined
   | inRam a = mcuRAM %~ ramWrite a w
   | inMirrorRam a = undefined
-  | inOAM a = undefined
+  | inOAM a = mcuPPU %~ oamWrite a w
   | inProhibited a = id -- probably?
-  | inJoypad a = undefined
+  | inJoypad a = mcuJoypad .~ w -- TODO: Bits 3-0 should be read-only
   | inSerialTransfer a = mcuSerial %~ serialWrite a w
   | inClock a = mcuClock %~ clockWrite a w
-  | inSound a = undefined
-  | inWave a = undefined
+  | inAPU a = mcuAPU %~ apuWrite a w
   | inLCD a = mcuPPU %~ lcdWrite a w
   | inBootRom a = undefined
   | otherwise = id

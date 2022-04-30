@@ -1,5 +1,5 @@
-{-# LANGUAGE RankNTypes #-}
 {-# LANGUAGE TupleSections #-}
+{-# LANGUAGE RankNTypes #-}
 
 module CB where
 
@@ -33,6 +33,70 @@ execcb opcode =
     0x0D -> (,8) . rrcL
     0x0E -> (,16) . rrcHL
     0x0F -> (,8) . rrcA
+    0x40 -> (,8) . testBit 0 cpuRegisterB
+    0x41 -> (,8) . testBit 0 cpuRegisterC
+    0x42 -> (,8) . testBit 0 cpuRegisterD
+    0x43 -> (,8) . testBit 0 cpuRegisterE
+    0x44 -> (,8) . testBit 0 cpuRegisterH
+    0x45 -> (,8) . testBit 0 cpuRegisterL
+    0x46 -> (,16) . testBitHL 0
+    0x47 -> (,8) . testBit 0 cpuRegisterA
+    0x48 -> (,8) . testBit 1 cpuRegisterB
+    0x49 -> (,8) . testBit 1 cpuRegisterC
+    0x4A -> (,8) . testBit 1 cpuRegisterD
+    0x4B -> (,8) . testBit 1 cpuRegisterE
+    0x4C -> (,8) . testBit 1 cpuRegisterH
+    0x4D -> (,8) . testBit 1 cpuRegisterL
+    0x4E -> (,16) . testBitHL 1
+    0x4F -> (,8) . testBit 1 cpuRegisterA
+    0x50 -> (,8) . testBit 2 cpuRegisterB
+    0x51 -> (,8) . testBit 2 cpuRegisterC
+    0x52 -> (,8) . testBit 2 cpuRegisterD
+    0x53 -> (,8) . testBit 2 cpuRegisterE
+    0x54 -> (,8) . testBit 2 cpuRegisterH
+    0x55 -> (,8) . testBit 2 cpuRegisterL
+    0x56 -> (,16) . testBitHL 2
+    0x57 -> (,8) . testBit 2 cpuRegisterA
+    0x58 -> (,8) . testBit 3 cpuRegisterB
+    0x59 -> (,8) . testBit 3 cpuRegisterC
+    0x5A -> (,8) . testBit 3 cpuRegisterD
+    0x5B -> (,8) . testBit 3 cpuRegisterE
+    0x5C -> (,8) . testBit 3 cpuRegisterH
+    0x5D -> (,8) . testBit 3 cpuRegisterL
+    0x5E -> (,16) . testBitHL 3
+    0x5F -> (,8) . testBit 3 cpuRegisterA
+    0x60 -> (,8) . testBit 4 cpuRegisterB
+    0x61 -> (,8) . testBit 4 cpuRegisterC
+    0x62 -> (,8) . testBit 4 cpuRegisterD
+    0x63 -> (,8) . testBit 4 cpuRegisterE
+    0x64 -> (,8) . testBit 4 cpuRegisterH
+    0x65 -> (,8) . testBit 4 cpuRegisterL
+    0x66 -> (,16) . testBitHL 4
+    0x67 -> (,8) . testBit 4 cpuRegisterA
+    0x68 -> (,8) . testBit 5 cpuRegisterB
+    0x69 -> (,8) . testBit 5 cpuRegisterC
+    0x6A -> (,8) . testBit 5 cpuRegisterD
+    0x6B -> (,8) . testBit 5 cpuRegisterE
+    0x6C -> (,8) . testBit 5 cpuRegisterH
+    0x6D -> (,8) . testBit 5 cpuRegisterL
+    0x6E -> (,16) . testBitHL 5
+    0x6F -> (,8) . testBit 5 cpuRegisterA
+    0x70 -> (,8) . testBit 6 cpuRegisterB
+    0x71 -> (,8) . testBit 6 cpuRegisterC
+    0x72 -> (,8) . testBit 6 cpuRegisterD
+    0x73 -> (,8) . testBit 6 cpuRegisterE
+    0x74 -> (,8) . testBit 6 cpuRegisterH
+    0x75 -> (,8) . testBit 6 cpuRegisterL
+    0x76 -> (,16) . testBitHL 6
+    0x77 -> (,8) . testBit 6 cpuRegisterA
+    0x78 -> (,8) . testBit 7 cpuRegisterB
+    0x79 -> (,8) . testBit 7 cpuRegisterC
+    0x7A -> (,8) . testBit 7 cpuRegisterD
+    0x7B -> (,8) . testBit 7 cpuRegisterE
+    0x7C -> (,8) . testBit 7 cpuRegisterH
+    0x7D -> (,8) . testBit 7 cpuRegisterL
+    0x7E -> (,16) . testBitHL 7
+    0x7F -> (,8) . testBit 7 cpuRegisterA
     0x80 -> (,8) . res0B
     0x81 -> (,8) . res0C
     0x82 -> (,8) . res0D
@@ -202,7 +266,7 @@ rlcHL cpu =
     & cpuFlagH .~ False
   where
     newVal = oldVal `rotateL` 1
-    oldVal = mcuLookup (cpu ^. cpuRegisterHL) cpu
+    oldVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL)
     old7th = oldVal ^. bitwiseValue (bit 7)
 
 rlcA :: CPU -> CPU
@@ -245,7 +309,7 @@ rrcHL cpu =
     & cpuFlagH .~ False
   where
     newVal = oldVal `rotateR` 1
-    oldVal = mcuLookup (cpu ^. cpuRegisterHL) cpu
+    oldVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL)
     old0th = oldVal ^. bitwiseValue (bit 0)
 
 rrcA :: CPU -> CPU
@@ -425,45 +489,46 @@ res7A = res 7 cpuRegisterA
 res0HL :: CPU -> CPU
 res0HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 0) .~ False
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 0) .~ False
 
 res1HL :: CPU -> CPU
 res1HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 1) .~ False
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 1) .~ False
 
 res2HL :: CPU -> CPU
 res2HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 2) .~ False
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 2) .~ False
 
 res3HL :: CPU -> CPU
 res3HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 3) .~ False
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 3) .~ False
 
 res4HL :: CPU -> CPU
 res4HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 4) .~ False
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 4) .~ False
 
 res5HL :: CPU -> CPU
 res5HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 5) .~ False
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 5) .~ False
 
 res6HL :: CPU -> CPU
 res6HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 6) .~ False
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 6) .~ False
 
 res7HL :: CPU -> CPU
 res7HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 7) .~ False
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 7) .~ False
 
 set :: Int -> Lens' CPU Word8 -> CPU -> CPU
 set b reg = reg . bitwiseValue (bit b) .~ True
+
 
 set0B :: CPU -> CPU
 set0B = set 0 cpuRegisterB
@@ -636,39 +701,49 @@ set7A = set 7 cpuRegisterA
 set0HL :: CPU -> CPU
 set0HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 0) .~ True
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 0) .~ True
 
 set1HL :: CPU -> CPU
 set1HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 1) .~ True
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 1) .~ True
 
 set2HL :: CPU -> CPU
 set2HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 2) .~ True
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 2) .~ True
 
 set3HL :: CPU -> CPU
 set3HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 3) .~ True
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 3) .~ True
 
 set4HL :: CPU -> CPU
 set4HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 4) .~ True
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 4) .~ True
 
 set5HL :: CPU -> CPU
 set5HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 5) .~ True
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 5) .~ True
 
 set6HL :: CPU -> CPU
 set6HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 6) .~ True
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 6) .~ True
 
 set7HL :: CPU -> CPU
 set7HL cpu = cpu & mcuWrite (cpu ^. cpuRegisterHL) newVal
   where
-    newVal = mcuLookup (cpu ^. cpuRegisterHL) cpu & bitwiseValue (bit 7) .~ True
+    newVal = cpu ^. mcuLookup (cpu ^. cpuRegisterHL) & bitwiseValue (bit 7) .~ True
+
+testBit :: Int -> Getter CPU Word8 -> CPU -> CPU
+testBit b reg cpu = 
+  cpu & cpuFlagZ .~ (cpu ^. reg . bitwiseValue (bit b) . to not)
+    & cpuFlagN .~ False
+    & cpuFlagH .~ True
+
+testBitHL :: Int -> CPU -> CPU
+testBitHL b cpu =
+  testBit b (mcuLookup (cpu ^. cpuRegisterHL)) cpu
