@@ -4,35 +4,83 @@
 module CB where
 
 import Control.Lens hiding (set)
-import Data.Bits (bit, rotateL, rotateR)
-import Data.Tuple (swap)
+import Data.Bits (bit, rotateL, rotateR, shiftL, shiftR)
+import qualified Data.Tuple as T
 import Data.Word (Word8)
 import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup)
 import Types
-import Utils (bitwiseValue)
+import Utils (bitwiseValue, swapWord8)
 
 cb :: CPU -> (CPU, Cycles)
-cb = uncurry execcb . swap . pcLookup
+cb = uncurry execcb . T.swap . pcLookup
 
 execcb :: Word8 -> CPU -> (CPU, Cycles)
 execcb opcode =
   case opcode of
-    0x00 -> (,8) . rlcB
-    0x01 -> (,8) . rlcC
-    0x02 -> (,8) . rlcD
-    0x03 -> (,8) . rlcE
-    0x04 -> (,8) . rlcH
-    0x05 -> (,8) . rlcL
+    0x00 -> (,8) . rlc cpuRegisterB
+    0x01 -> (,8) . rlc cpuRegisterC
+    0x02 -> (,8) . rlc cpuRegisterD
+    0x03 -> (,8) . rlc cpuRegisterE
+    0x04 -> (,8) . rlc cpuRegisterH
+    0x05 -> (,8) . rlc cpuRegisterL
     0x06 -> (,16) . rlcHL
-    0x07 -> (,8) . rlcA
-    0x08 -> (,8) . rrcB
-    0x09 -> (,8) . rrcC
-    0x0A -> (,8) . rrcD
-    0x0B -> (,8) . rrcE
-    0x0C -> (,8) . rrcH
-    0x0D -> (,8) . rrcL
+    0x07 -> (,8) . rlc cpuRegisterA
+    0x08 -> (,8) . rrc cpuRegisterB
+    0x09 -> (,8) . rrc cpuRegisterC
+    0x0A -> (,8) . rrc cpuRegisterD
+    0x0B -> (,8) . rrc cpuRegisterE
+    0x0C -> (,8) . rrc cpuRegisterH
+    0x0D -> (,8) . rrc cpuRegisterL
     0x0E -> (,16) . rrcHL
-    0x0F -> (,8) . rrcA
+    0x0F -> (,8) . rrc cpuRegisterA
+    0x10 -> (,8) . rl cpuRegisterB
+    0x11 -> (,8) . rl cpuRegisterC
+    0x12 -> (,8) . rl cpuRegisterD
+    0x13 -> (,8) . rl cpuRegisterE
+    0x14 -> (,8) . rl cpuRegisterH
+    0x15 -> (,8) . rl cpuRegisterL
+    0x16 -> (,16) . rlHL
+    0x17 -> (,8) . rl cpuRegisterA
+    0x18 -> (,8) . rr cpuRegisterB
+    0x19 -> (,8) . rr cpuRegisterC
+    0x1A -> (,8) . rr cpuRegisterD
+    0x1B -> (,8) . rr cpuRegisterE
+    0x1C -> (,8) . rr cpuRegisterH
+    0x1D -> (,8) . rr cpuRegisterL
+    0x1E -> (,16) . rrHL
+    0x1F -> (,8) . rr cpuRegisterA
+    0x20 -> (,8) . sla cpuRegisterB
+    0x21 -> (,8) . sla cpuRegisterC
+    0x22 -> (,8) . sla cpuRegisterD
+    0x23 -> (,8) . sla cpuRegisterE
+    0x24 -> (,8) . sla cpuRegisterH
+    0x25 -> (,8) . sla cpuRegisterL
+    0x26 -> (,16) . slaHL
+    0x27 -> (,8) . sla cpuRegisterA
+    0x28 -> (,8) . sra cpuRegisterB
+    0x29 -> (,8) . sra cpuRegisterC
+    0x2A -> (,8) . sra cpuRegisterD
+    0x2B -> (,8) . sra cpuRegisterE
+    0x2C -> (,8) . sra cpuRegisterH
+    0x2D -> (,8) . sra cpuRegisterL
+    0x2E -> (,16) . sraHL
+    0x2F -> (,8) . sra cpuRegisterA
+    0x30 -> (,8) . swap cpuRegisterB
+    0x31 -> (,8) . swap cpuRegisterC
+    0x32 -> (,8) . swap cpuRegisterD
+    0x33 -> (,8) . swap cpuRegisterE
+    0x34 -> (,8) . swap cpuRegisterH
+    0x35 -> (,8) . swap cpuRegisterL
+    0x36 -> (,16) . swapHL
+    0x37 -> (,8) . swap cpuRegisterA
+    0x38 -> (,8) . srl cpuRegisterB
+    0x39 -> (,8) . srl cpuRegisterC
+    0x3A -> (,8) . srl cpuRegisterD
+    0x3B -> (,8) . srl cpuRegisterE
+    0x3C -> (,8) . srl cpuRegisterH
+    0x3D -> (,8) . srl cpuRegisterL
+    0x3E -> (,16) . srlHL
+    0x3F -> (,8) . srl cpuRegisterA
     0x40 -> (,8) . testBit 0 cpuRegisterB
     0x41 -> (,8) . testBit 0 cpuRegisterC
     0x42 -> (,8) . testBit 0 cpuRegisterD
@@ -97,134 +145,134 @@ execcb opcode =
     0x7D -> (,8) . testBit 7 cpuRegisterL
     0x7E -> (,16) . testBitHL 7
     0x7F -> (,8) . testBit 7 cpuRegisterA
-    0x80 -> (,8) . res0B
-    0x81 -> (,8) . res0C
-    0x82 -> (,8) . res0D
-    0x83 -> (,8) . res0E
-    0x84 -> (,8) . res0H
-    0x85 -> (,8) . res0L
+    0x80 -> (,8) . res 0 cpuRegisterB
+    0x81 -> (,8) . res 0 cpuRegisterC
+    0x82 -> (,8) . res 0 cpuRegisterD
+    0x83 -> (,8) . res 0 cpuRegisterE
+    0x84 -> (,8) . res 0 cpuRegisterH
+    0x85 -> (,8) . res 0 cpuRegisterL
     0x86 -> (,16) . res0HL
-    0x87 -> (,8) . res0A
-    0x88 -> (,8) . res1B
-    0x89 -> (,8) . res1C
-    0x8A -> (,8) . res1D
-    0x8B -> (,8) . res1E
-    0x8C -> (,8) . res1H
-    0x8D -> (,8) . res1L
+    0x87 -> (,8) . res 0 cpuRegisterA
+    0x88 -> (,8) . res 1 cpuRegisterB
+    0x89 -> (,8) . res 1 cpuRegisterC
+    0x8A -> (,8) . res 1 cpuRegisterD
+    0x8B -> (,8) . res 1 cpuRegisterE
+    0x8C -> (,8) . res 1 cpuRegisterH
+    0x8D -> (,8) . res 1 cpuRegisterL
     0x8E -> (,16) . res1HL
-    0x8F -> (,8) . res1A
-    0x90 -> (,8) . res2B
-    0x91 -> (,8) . res2C
-    0x92 -> (,8) . res2D
-    0x93 -> (,8) . res2E
-    0x94 -> (,8) . res2H
-    0x95 -> (,8) . res2L
+    0x8F -> (,8) . res 1 cpuRegisterA
+    0x90 -> (,8) . res 2 cpuRegisterB
+    0x91 -> (,8) . res 2 cpuRegisterC
+    0x92 -> (,8) . res 2 cpuRegisterD
+    0x93 -> (,8) . res 2 cpuRegisterE
+    0x94 -> (,8) . res 2 cpuRegisterH
+    0x95 -> (,8) . res 2 cpuRegisterL
     0x96 -> (,16) . res2HL
-    0x97 -> (,8) . res2A
-    0x98 -> (,8) . res3B
-    0x99 -> (,8) . res3C
-    0x9A -> (,8) . res3D
-    0x9B -> (,8) . res3E
-    0x9C -> (,8) . res3H
-    0x9D -> (,8) . res3L
+    0x97 -> (,8) . res 2 cpuRegisterA
+    0x98 -> (,8) . res 3 cpuRegisterB
+    0x99 -> (,8) . res 3 cpuRegisterC
+    0x9A -> (,8) . res 3 cpuRegisterD
+    0x9B -> (,8) . res 3 cpuRegisterE
+    0x9C -> (,8) . res 3 cpuRegisterH
+    0x9D -> (,8) . res 3 cpuRegisterL
     0x9E -> (,16) . res3HL
-    0x9F -> (,8) . res3A
-    0xA0 -> (,8) . res4B
-    0xA1 -> (,8) . res4C
-    0xA2 -> (,8) . res4D
-    0xA3 -> (,8) . res4E
-    0xA4 -> (,8) . res4H
-    0xA5 -> (,8) . res4L
+    0x9F -> (,8) . res 3 cpuRegisterA
+    0xA0 -> (,8) . res 4 cpuRegisterB
+    0xA1 -> (,8) . res 4 cpuRegisterC
+    0xA2 -> (,8) . res 4 cpuRegisterD
+    0xA3 -> (,8) . res 4 cpuRegisterE
+    0xA4 -> (,8) . res 4 cpuRegisterH
+    0xA5 -> (,8) . res 4 cpuRegisterL
     0xA6 -> (,16) . res4HL
-    0xA7 -> (,8) . res4A
-    0xA8 -> (,8) . res5B
-    0xA9 -> (,8) . res5C
-    0xAA -> (,8) . res5D
-    0xAB -> (,8) . res5E
-    0xAC -> (,8) . res5H
-    0xAD -> (,8) . res5L
+    0xA7 -> (,8) . res 4 cpuRegisterA
+    0xA8 -> (,8) . res 5 cpuRegisterB
+    0xA9 -> (,8) . res 5 cpuRegisterC
+    0xAA -> (,8) . res 5 cpuRegisterD
+    0xAB -> (,8) . res 5 cpuRegisterE
+    0xAC -> (,8) . res 5 cpuRegisterH
+    0xAD -> (,8) . res 5 cpuRegisterL
     0xAE -> (,16) . res5HL
-    0xAF -> (,8) . res5A
-    0xB0 -> (,8) . res6B
-    0xB1 -> (,8) . res6C
-    0xB2 -> (,8) . res6D
-    0xB3 -> (,8) . res6E
-    0xB4 -> (,8) . res6H
-    0xB5 -> (,8) . res6L
+    0xAF -> (,8) . res 5 cpuRegisterA
+    0xB0 -> (,8) . res 6 cpuRegisterB
+    0xB1 -> (,8) . res 6 cpuRegisterC
+    0xB2 -> (,8) . res 6 cpuRegisterD
+    0xB3 -> (,8) . res 6 cpuRegisterE
+    0xB4 -> (,8) . res 6 cpuRegisterH
+    0xB5 -> (,8) . res 6 cpuRegisterL
     0xB6 -> (,16) . res6HL
-    0xB7 -> (,8) . res6A
-    0xB8 -> (,8) . res7B
-    0xB9 -> (,8) . res7C
-    0xBA -> (,8) . res7D
-    0xBB -> (,8) . res7E
-    0xBC -> (,8) . res7H
-    0xBD -> (,8) . res7L
+    0xB7 -> (,8) . res 6 cpuRegisterA
+    0xB8 -> (,8) . res 7 cpuRegisterB
+    0xB9 -> (,8) . res 7 cpuRegisterC
+    0xBA -> (,8) . res 7 cpuRegisterD
+    0xBB -> (,8) . res 7 cpuRegisterE
+    0xBC -> (,8) . res 7 cpuRegisterH
+    0xBD -> (,8) . res 7 cpuRegisterL
     0xBE -> (,16) . res7HL
-    0xBF -> (,8) . res7A
-    0xC0 -> (,8) . set0B
-    0xC1 -> (,8) . set0C
-    0xC2 -> (,8) . set0D
-    0xC3 -> (,8) . set0E
-    0xC4 -> (,8) . set0H
-    0xC5 -> (,8) . set0L
+    0xBF -> (,8) . res 7 cpuRegisterA
+    0xC0 -> (,8) . set 0 cpuRegisterB
+    0xC1 -> (,8) . set 0 cpuRegisterC
+    0xC2 -> (,8) . set 0 cpuRegisterD
+    0xC3 -> (,8) . set 0 cpuRegisterE
+    0xC4 -> (,8) . set 0 cpuRegisterH
+    0xC5 -> (,8) . set 0 cpuRegisterL
     0xC6 -> (,16) . set0HL
-    0xC7 -> (,8) . set0A
-    0xC8 -> (,8) . set1B
-    0xC9 -> (,8) . set1C
-    0xCA -> (,8) . set1D
-    0xCB -> (,8) . set1E
-    0xCC -> (,8) . set1H
-    0xCD -> (,8) . set1L
+    0xC7 -> (,8) . set 0 cpuRegisterA
+    0xC8 -> (,8) . set 1 cpuRegisterB
+    0xC9 -> (,8) . set 1 cpuRegisterC
+    0xCA -> (,8) . set 1 cpuRegisterD
+    0xCB -> (,8) . set 1 cpuRegisterE
+    0xCC -> (,8) . set 1 cpuRegisterH
+    0xCD -> (,8) . set 1 cpuRegisterL
     0xCE -> (,16) . set1HL
-    0xCF -> (,8) . set1A
-    0xD0 -> (,8) . set2B
-    0xD1 -> (,8) . set2C
-    0xD2 -> (,8) . set2D
-    0xD3 -> (,8) . set2E
-    0xD4 -> (,8) . set2H
-    0xD5 -> (,8) . set2L
+    0xCF -> (,8) . set 1 cpuRegisterA
+    0xD0 -> (,8) . set 2 cpuRegisterB
+    0xD1 -> (,8) . set 2 cpuRegisterC
+    0xD2 -> (,8) . set 2 cpuRegisterD
+    0xD3 -> (,8) . set 2 cpuRegisterE
+    0xD4 -> (,8) . set 2 cpuRegisterH
+    0xD5 -> (,8) . set 2 cpuRegisterL
     0xD6 -> (,16) . set2HL
-    0xD7 -> (,8) . set2A
-    0xD8 -> (,8) . set3B
-    0xD9 -> (,8) . set3C
-    0xDA -> (,8) . set3D
-    0xDB -> (,8) . set3E
-    0xDC -> (,8) . set3H
-    0xDD -> (,8) . set3L
+    0xD7 -> (,8) . set 2 cpuRegisterA
+    0xD8 -> (,8) . set 3 cpuRegisterB
+    0xD9 -> (,8) . set 3 cpuRegisterC
+    0xDA -> (,8) . set 3 cpuRegisterD
+    0xDB -> (,8) . set 3 cpuRegisterE
+    0xDC -> (,8) . set 3 cpuRegisterH
+    0xDD -> (,8) . set 3 cpuRegisterL
     0xDE -> (,16) . set3HL
-    0xDF -> (,8) . set3A
-    0xE0 -> (,8) . set4B
-    0xE1 -> (,8) . set4C
-    0xE2 -> (,8) . set4D
-    0xE3 -> (,8) . set4E
-    0xE4 -> (,8) . set4H
-    0xE5 -> (,8) . set4L
+    0xDF -> (,8) . set 3 cpuRegisterA
+    0xE0 -> (,8) . set 4 cpuRegisterB
+    0xE1 -> (,8) . set 4 cpuRegisterC
+    0xE2 -> (,8) . set 4 cpuRegisterD
+    0xE3 -> (,8) . set 4 cpuRegisterE
+    0xE4 -> (,8) . set 4 cpuRegisterH
+    0xE5 -> (,8) . set 4 cpuRegisterL
     0xE6 -> (,16) . set4HL
-    0xE7 -> (,8) . set4A
-    0xE8 -> (,8) . set5B
-    0xE9 -> (,8) . set5C
-    0xEA -> (,8) . set5D
-    0xEB -> (,8) . set5E
-    0xEC -> (,8) . set5H
-    0xED -> (,8) . set5L
+    0xE7 -> (,8) . set 4 cpuRegisterA
+    0xE8 -> (,8) . set 5 cpuRegisterB
+    0xE9 -> (,8) . set 5 cpuRegisterC
+    0xEA -> (,8) . set 5 cpuRegisterD
+    0xEB -> (,8) . set 5 cpuRegisterE
+    0xEC -> (,8) . set 5 cpuRegisterH
+    0xED -> (,8) . set 5 cpuRegisterL
     0xEE -> (,16) . set5HL
-    0xEF -> (,8) . set5A
-    0xF0 -> (,8) . set6B
-    0xF1 -> (,8) . set6C
-    0xF2 -> (,8) . set6D
-    0xF3 -> (,8) . set6E
-    0xF4 -> (,8) . set6H
-    0xF5 -> (,8) . set6L
+    0xEF -> (,8) . set 5 cpuRegisterA
+    0xF0 -> (,8) . set 6 cpuRegisterB
+    0xF1 -> (,8) . set 6 cpuRegisterC
+    0xF2 -> (,8) . set 6 cpuRegisterD
+    0xF3 -> (,8) . set 6 cpuRegisterE
+    0xF4 -> (,8) . set 6 cpuRegisterH
+    0xF5 -> (,8) . set 6 cpuRegisterL
     0xF6 -> (,16) . set6HL
-    0xF7 -> (,8) . set6A
-    0xF8 -> (,8) . set7B
-    0xF9 -> (,8) . set7C
-    0xFA -> (,8) . set7D
-    0xFB -> (,8) . set7E
-    0xFC -> (,8) . set7H
-    0xFD -> (,8) . set7L
+    0xF7 -> (,8) . set 6 cpuRegisterA
+    0xF8 -> (,8) . set 7 cpuRegisterB
+    0xF9 -> (,8) . set 7 cpuRegisterC
+    0xFA -> (,8) . set 7 cpuRegisterD
+    0xFB -> (,8) . set 7 cpuRegisterE
+    0xFC -> (,8) . set 7 cpuRegisterH
+    0xFD -> (,8) . set 7 cpuRegisterL
     0xFE -> (,16) . set7HL
-    0xFF -> (,8) . set7A
+    0xFF -> (,8) . set 7 cpuRegisterA
     _ -> undefined
 
 -- NOTE: From what I currently understand, RxCA operations only SET the carry to the bit carried over, but DO NOT rotate through it,
@@ -239,23 +287,30 @@ rlc reg cpu =
   where
     old7th = cpu ^. reg . bitwiseValue (bit 7)
 
-rlcB :: CPU -> CPU
-rlcB = rlc cpuRegisterB
+rl :: Lens' CPU Word8 -> CPU -> CPU
+rl reg cpu =
+  cpu & reg . bitwiseValue (bit 7) .~ new7th
+    & cpuFlagC .~ old7th
+    & reg %~ (`rotateL` 1)
+    & (\c -> c & cpuFlagZ .~ (c ^. reg == 0))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+  where
+    old7th = cpu ^. reg . bitwiseValue (bit 7)
+    new7th = cpu ^. cpuFlagC
 
-rlcC :: CPU -> CPU
-rlcC = rlc cpuRegisterC
-
-rlcD :: CPU -> CPU
-rlcD = rlc cpuRegisterD
-
-rlcE :: CPU -> CPU
-rlcE = rlc cpuRegisterE
-
-rlcH :: CPU -> CPU
-rlcH = rlc cpuRegisterH
-
-rlcL :: CPU -> CPU
-rlcL = rlc cpuRegisterL
+rlHL :: CPU -> CPU
+rlHL cpu =
+  cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
+    & cpuFlagC .~ old7th
+    & (\c -> c & cpuFlagZ .~ (newVal == 0))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+  where
+    newVal = oldVal & bitwiseValue (bit 7) .~ new7th
+    old7th = oldVal ^. bitwiseValue (bit 7)
+    oldVal = cpu ^. mcuLookup cpuRegisterHL
+    new7th = cpu ^. cpuFlagC
 
 rlcHL :: CPU -> CPU
 rlcHL cpu =
@@ -269,8 +324,30 @@ rlcHL cpu =
     oldVal = cpu ^. mcuLookup cpuRegisterHL
     old7th = oldVal ^. bitwiseValue (bit 7)
 
-rlcA :: CPU -> CPU
-rlcA = rlc cpuRegisterA
+rr :: Lens' CPU Word8 -> CPU -> CPU
+rr reg cpu =
+  cpu & reg . bitwiseValue (bit 0) .~ new0th
+    & cpuFlagC .~ old0th
+    & reg %~ (`rotateR` 1)
+    & (\c -> c & cpuFlagZ .~ (c ^. reg == 0))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+  where
+    old0th = cpu ^. reg . bitwiseValue (bit 0)
+    new0th = cpu ^. cpuFlagC
+
+rrHL :: CPU -> CPU
+rrHL cpu =
+  cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
+    & cpuFlagC .~ old0th
+    & (\c -> c & cpuFlagZ .~ (newVal == 0))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+  where
+    newVal = oldVal & bitwiseValue (bit 0) .~ new0th
+    old0th = oldVal ^. bitwiseValue (bit 0)
+    oldVal = cpu ^. mcuLookup cpuRegisterHL
+    new0th = cpu ^. cpuFlagC
 
 rrc :: Lens' CPU Word8 -> CPU -> CPU
 rrc reg cpu =
@@ -281,24 +358,6 @@ rrc reg cpu =
     & cpuFlagH .~ False
   where
     old0th = cpu ^. reg . bitwiseValue (bit 0)
-
-rrcB :: CPU -> CPU
-rrcB = rrc cpuRegisterB
-
-rrcC :: CPU -> CPU
-rrcC = rrc cpuRegisterC
-
-rrcD :: CPU -> CPU
-rrcD = rrc cpuRegisterD
-
-rrcE :: CPU -> CPU
-rrcE = rrc cpuRegisterE
-
-rrcH :: CPU -> CPU
-rrcH = rrc cpuRegisterH
-
-rrcL :: CPU -> CPU
-rrcL = rrc cpuRegisterL
 
 rrcHL :: CPU -> CPU
 rrcHL cpu =
@@ -312,180 +371,84 @@ rrcHL cpu =
     oldVal = cpu ^. mcuLookup cpuRegisterHL
     old0th = oldVal ^. bitwiseValue (bit 0)
 
-rrcA :: CPU -> CPU
-rrcA = rrc cpuRegisterA
+sla :: Lens' CPU Word8 -> CPU -> CPU
+sla reg cpu =
+  cpu & cpuFlagC .~ (cpu ^. reg . bitwiseValue (bit 7))
+    & reg %~ (`shiftL` 1)
+    & (\c -> c & cpuFlagZ .~ (c ^. reg == 0))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+
+slaHL :: CPU -> CPU
+slaHL cpu =
+  cpu & cpuFlagC .~ (val ^. bitwiseValue (bit 7))
+    & mcuWrite cpuRegisterHL (to . const $ newVal)
+    & (\c -> c & cpuFlagZ .~ (newVal == 0))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+  where
+    newVal = shiftL val 1
+    val = cpu ^. mcuLookup cpuRegisterHL
+
+sra :: Lens' CPU Word8 -> CPU -> CPU
+sra reg cpu =
+  cpu & cpuFlagC .~ (cpu ^. reg . bitwiseValue (bit 0))
+    & reg %~ (`shiftR` 1)
+    & (\c -> c & reg . bitwiseValue (bit 7) .~ cpu ^. reg . bitwiseValue (bit 6))
+    & (\c -> c & cpuFlagZ .~ (c ^. reg == 0))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+
+sraHL :: CPU -> CPU
+sraHL cpu =
+  cpu & cpuFlagC .~ (val ^. bitwiseValue (bit 0))
+    & mcuWrite cpuRegisterHL (to . const $ newVal)
+    & (\c -> c & cpuFlagZ .~ (newVal == 0))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+  where
+    newVal = shiftR val 1 & bitwiseValue (bit 7) .~ (val ^. bitwiseValue (bit 7))
+    val = cpu ^. mcuLookup cpuRegisterHL
+
+srl :: Lens' CPU Word8 -> CPU -> CPU
+srl reg cpu =
+  cpu & cpuFlagC .~ (cpu ^. reg . bitwiseValue (bit 0))
+    & reg %~ (`shiftR` 1)
+    & (\c -> c & cpuFlagZ .~ (c ^. reg == 0))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+
+srlHL :: CPU -> CPU
+srlHL cpu =
+  cpu & cpuFlagC .~ (val ^. bitwiseValue (bit 0))
+    & mcuWrite cpuRegisterHL (to . const $ newVal)
+    & (\c -> c & cpuFlagZ .~ (newVal == 0))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+  where
+    newVal = shiftR val 1
+    val = cpu ^. mcuLookup cpuRegisterHL
+
+swap :: Lens' CPU Word8 -> CPU -> CPU
+swap reg cpu =
+  cpu & reg %~ swapWord8
+    & (\c -> c & cpuFlagZ .~ (c ^. reg == 0))
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+    & cpuFlagC .~ False
+
+swapHL :: CPU -> CPU
+swapHL cpu =
+  cpu & mcuWrite cpuRegisterHL (to . const $ val)
+    & cpuFlagZ .~ (val == 0)
+    & cpuFlagN .~ False
+    & cpuFlagH .~ False
+    & cpuFlagC .~ False
+  where
+    val = cpu ^. mcuLookup cpuRegisterHL . to swapWord8
 
 res :: Int -> Lens' CPU Word8 -> CPU -> CPU
 res b reg = reg . bitwiseValue (bit b) .~ False
-
-res0B :: CPU -> CPU
-res0B = res 0 cpuRegisterB
-
-res1B :: CPU -> CPU
-res1B = res 1 cpuRegisterB
-
-res2B :: CPU -> CPU
-res2B = res 2 cpuRegisterB
-
-res3B :: CPU -> CPU
-res3B = res 3 cpuRegisterB
-
-res4B :: CPU -> CPU
-res4B = res 4 cpuRegisterB
-
-res5B :: CPU -> CPU
-res5B = res 5 cpuRegisterB
-
-res6B :: CPU -> CPU
-res6B = res 6 cpuRegisterB
-
-res7B :: CPU -> CPU
-res7B = res 7 cpuRegisterB
-
-res0C :: CPU -> CPU
-res0C = res 0 cpuRegisterC
-
-res1C :: CPU -> CPU
-res1C = res 1 cpuRegisterC
-
-res2C :: CPU -> CPU
-res2C = res 2 cpuRegisterC
-
-res3C :: CPU -> CPU
-res3C = res 3 cpuRegisterC
-
-res4C :: CPU -> CPU
-res4C = res 4 cpuRegisterC
-
-res5C :: CPU -> CPU
-res5C = res 5 cpuRegisterC
-
-res6C :: CPU -> CPU
-res6C = res 6 cpuRegisterC
-
-res7C :: CPU -> CPU
-res7C = res 7 cpuRegisterC
-
-res0D :: CPU -> CPU
-res0D = res 0 cpuRegisterD
-
-res1D :: CPU -> CPU
-res1D = res 1 cpuRegisterD
-
-res2D :: CPU -> CPU
-res2D = res 2 cpuRegisterD
-
-res3D :: CPU -> CPU
-res3D = res 3 cpuRegisterD
-
-res4D :: CPU -> CPU
-res4D = res 4 cpuRegisterD
-
-res5D :: CPU -> CPU
-res5D = res 5 cpuRegisterD
-
-res6D :: CPU -> CPU
-res6D = res 6 cpuRegisterD
-
-res7D :: CPU -> CPU
-res7D = res 7 cpuRegisterD
-
-res0E :: CPU -> CPU
-res0E = res 0 cpuRegisterE
-
-res1E :: CPU -> CPU
-res1E = res 1 cpuRegisterE
-
-res2E :: CPU -> CPU
-res2E = res 2 cpuRegisterE
-
-res3E :: CPU -> CPU
-res3E = res 3 cpuRegisterE
-
-res4E :: CPU -> CPU
-res4E = res 4 cpuRegisterE
-
-res5E :: CPU -> CPU
-res5E = res 5 cpuRegisterE
-
-res6E :: CPU -> CPU
-res6E = res 6 cpuRegisterE
-
-res7E :: CPU -> CPU
-res7E = res 7 cpuRegisterE
-
-res0H :: CPU -> CPU
-res0H = res 0 cpuRegisterH
-
-res1H :: CPU -> CPU
-res1H = res 1 cpuRegisterH
-
-res2H :: CPU -> CPU
-res2H = res 2 cpuRegisterH
-
-res3H :: CPU -> CPU
-res3H = res 3 cpuRegisterH
-
-res4H :: CPU -> CPU
-res4H = res 4 cpuRegisterH
-
-res5H :: CPU -> CPU
-res5H = res 5 cpuRegisterH
-
-res6H :: CPU -> CPU
-res6H = res 6 cpuRegisterH
-
-res7H :: CPU -> CPU
-res7H = res 7 cpuRegisterH
-
-res0L :: CPU -> CPU
-res0L = res 0 cpuRegisterL
-
-res1L :: CPU -> CPU
-res1L = res 1 cpuRegisterL
-
-res2L :: CPU -> CPU
-res2L = res 2 cpuRegisterL
-
-res3L :: CPU -> CPU
-res3L = res 3 cpuRegisterL
-
-res4L :: CPU -> CPU
-res4L = res 4 cpuRegisterL
-
-res5L :: CPU -> CPU
-res5L = res 5 cpuRegisterL
-
-res6L :: CPU -> CPU
-res6L = res 6 cpuRegisterL
-
-res7L :: CPU -> CPU
-res7L = res 7 cpuRegisterL
-
-res0A :: CPU -> CPU
-res0A = res 0 cpuRegisterA
-
-res1A :: CPU -> CPU
-res1A = res 1 cpuRegisterA
-
-res2A :: CPU -> CPU
-res2A = res 2 cpuRegisterA
-
-res3A :: CPU -> CPU
-res3A = res 3 cpuRegisterA
-
-res4A :: CPU -> CPU
-res4A = res 4 cpuRegisterA
-
-res5A :: CPU -> CPU
-res5A = res 5 cpuRegisterA
-
-res6A :: CPU -> CPU
-res6A = res 6 cpuRegisterA
-
-res7A :: CPU -> CPU
-res7A = res 7 cpuRegisterA
-
 
 res0HL :: CPU -> CPU
 res0HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
@@ -529,175 +492,6 @@ res7HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)
 
 set :: Int -> Lens' CPU Word8 -> CPU -> CPU
 set b reg = reg . bitwiseValue (bit b) .~ True
-
-
-set0B :: CPU -> CPU
-set0B = set 0 cpuRegisterB
-
-set1B :: CPU -> CPU
-set1B = set 1 cpuRegisterB
-
-set2B :: CPU -> CPU
-set2B = set 2 cpuRegisterB
-
-set3B :: CPU -> CPU
-set3B = set 3 cpuRegisterB
-
-set4B :: CPU -> CPU
-set4B = set 4 cpuRegisterB
-
-set5B :: CPU -> CPU
-set5B = set 5 cpuRegisterB
-
-set6B :: CPU -> CPU
-set6B = set 6 cpuRegisterB
-
-set7B :: CPU -> CPU
-set7B = set 7 cpuRegisterB
-
-set0C :: CPU -> CPU
-set0C = set 0 cpuRegisterC
-
-set1C :: CPU -> CPU
-set1C = set 1 cpuRegisterC
-
-set2C :: CPU -> CPU
-set2C = set 2 cpuRegisterC
-
-set3C :: CPU -> CPU
-set3C = set 3 cpuRegisterC
-
-set4C :: CPU -> CPU
-set4C = set 4 cpuRegisterC
-
-set5C :: CPU -> CPU
-set5C = set 5 cpuRegisterC
-
-set6C :: CPU -> CPU
-set6C = set 6 cpuRegisterC
-
-set7C :: CPU -> CPU
-set7C = set 7 cpuRegisterC
-
-set0D :: CPU -> CPU
-set0D = set 0 cpuRegisterD
-
-set1D :: CPU -> CPU
-set1D = set 1 cpuRegisterD
-
-set2D :: CPU -> CPU
-set2D = set 2 cpuRegisterD
-
-set3D :: CPU -> CPU
-set3D = set 3 cpuRegisterD
-
-set4D :: CPU -> CPU
-set4D = set 4 cpuRegisterD
-
-set5D :: CPU -> CPU
-set5D = set 5 cpuRegisterD
-
-set6D :: CPU -> CPU
-set6D = set 6 cpuRegisterD
-
-set7D :: CPU -> CPU
-set7D = set 7 cpuRegisterD
-
-set0E :: CPU -> CPU
-set0E = set 0 cpuRegisterE
-
-set1E :: CPU -> CPU
-set1E = set 1 cpuRegisterE
-
-set2E :: CPU -> CPU
-set2E = set 2 cpuRegisterE
-
-set3E :: CPU -> CPU
-set3E = set 3 cpuRegisterE
-
-set4E :: CPU -> CPU
-set4E = set 4 cpuRegisterE
-
-set5E :: CPU -> CPU
-set5E = set 5 cpuRegisterE
-
-set6E :: CPU -> CPU
-set6E = set 6 cpuRegisterE
-
-set7E :: CPU -> CPU
-set7E = set 7 cpuRegisterE
-
-set0H :: CPU -> CPU
-set0H = set 0 cpuRegisterH
-
-set1H :: CPU -> CPU
-set1H = set 1 cpuRegisterH
-
-set2H :: CPU -> CPU
-set2H = set 2 cpuRegisterH
-
-set3H :: CPU -> CPU
-set3H = set 3 cpuRegisterH
-
-set4H :: CPU -> CPU
-set4H = set 4 cpuRegisterH
-
-set5H :: CPU -> CPU
-set5H = set 5 cpuRegisterH
-
-set6H :: CPU -> CPU
-set6H = set 6 cpuRegisterH
-
-set7H :: CPU -> CPU
-set7H = set 7 cpuRegisterH
-
-set0L :: CPU -> CPU
-set0L = set 0 cpuRegisterL
-
-set1L :: CPU -> CPU
-set1L = set 1 cpuRegisterL
-
-set2L :: CPU -> CPU
-set2L = set 2 cpuRegisterL
-
-set3L :: CPU -> CPU
-set3L = set 3 cpuRegisterL
-
-set4L :: CPU -> CPU
-set4L = set 4 cpuRegisterL
-
-set5L :: CPU -> CPU
-set5L = set 5 cpuRegisterL
-
-set6L :: CPU -> CPU
-set6L = set 6 cpuRegisterL
-
-set7L :: CPU -> CPU
-set7L = set 7 cpuRegisterL
-
-set0A :: CPU -> CPU
-set0A = set 0 cpuRegisterA
-
-set1A :: CPU -> CPU
-set1A = set 1 cpuRegisterA
-
-set2A :: CPU -> CPU
-set2A = set 2 cpuRegisterA
-
-set3A :: CPU -> CPU
-set3A = set 3 cpuRegisterA
-
-set4A :: CPU -> CPU
-set4A = set 4 cpuRegisterA
-
-set5A :: CPU -> CPU
-set5A = set 5 cpuRegisterA
-
-set6A :: CPU -> CPU
-set6A = set 6 cpuRegisterA
-
-set7A :: CPU -> CPU
-set7A = set 7 cpuRegisterA
 
 set0HL :: CPU -> CPU
 set0HL cpu = cpu & mcuWrite cpuRegisterHL (to . const $ newVal)

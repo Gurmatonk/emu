@@ -20,7 +20,7 @@ import Serial (initSerial, serialLookup, serialWrite)
 import Types
 
 initMcu :: MCU
-initMcu = MCU mempty initCartridge initPpu initClock initSerial initAPU 0xCF
+initMcu = MCU mempty initCartridge initPpu initClock initSerial initAPU 0xCF 0xFF
 
 -- https://gbdev.io/pandocs/Memory_Map.html
 -- TODO: Mapping of lookups/writes by Address:
@@ -92,7 +92,7 @@ addressLookup a
   | inClock a = view (mcuClock . to (clockLookup a))
   | inAPU a = view (mcuAPU . to (apuLookup a))
   | inLCD a = view (mcuPPU . to (lcdLookup a))
-  | inBootRom a = undefined
+  | inBootRom a = view mcuBootRom
   | otherwise = const 0xFF
 
 addressWrite :: Word16 -> Word8 -> MCU -> MCU
@@ -110,5 +110,5 @@ addressWrite a w
   | inClock a = mcuClock %~ clockWrite a w
   | inAPU a = mcuAPU %~ apuWrite a w
   | inLCD a = mcuPPU %~ lcdWrite a w
-  | inBootRom a = undefined
+  | inBootRom a = mcuBootRom .~ w
   | otherwise = id

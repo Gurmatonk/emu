@@ -199,54 +199,54 @@ execInstruction opcode =
     0x95 -> (,4) . sub cpuRegisterL
     0x96 -> (,8) . sub (mcuLookup cpuRegisterHL)
     0x97 -> (,4) . sub cpuRegisterA
-    0x98 -> (,4) . sbcB
-    0x99 -> (,4) . sbcC
-    0x9A -> (,4) . sbcD
-    0x9B -> (,4) . sbcE
-    0x9C -> (,4) . sbcH
-    0x9D -> (,4) . sbcL
-    0x9E -> (,8) . sbcHL
-    0x9F -> (,4) . sbcA
-    0xA0 -> (,4) . andB
-    0xA1 -> (,4) . andC
-    0xA2 -> (,4) . andD
-    0xA3 -> (,4) . andE
-    0xA4 -> (,4) . andH
-    0xA5 -> (,4) . andL
-    0xA6 -> (,8) . andHL
-    0xA7 -> (,4) . andA
-    0xA8 -> (,4) . xorB
-    0xA9 -> (,4) . xorC
-    0xAA -> (,4) . xorD
-    0xAB -> (,4) . xorE
-    0xAC -> (,4) . xorH
-    0xAD -> (,4) . xorL
-    0xAE -> (,8) . xorHL
-    0xAF -> (,4) . xorA
-    0xB0 -> (,4) . orB
-    0xB1 -> (,4) . orC
-    0xB2 -> (,4) . orD
-    0xB3 -> (,4) . orE
-    0xB4 -> (,4) . orH
-    0xB5 -> (,4) . orL
-    0xB6 -> (,8) . orHL
-    0xB7 -> (,4) . orA
-    0xB8 -> (,4) . cpB
-    0xB9 -> (,4) . cpC
-    0xBA -> (,4) . cpD
-    0xBB -> (,4) . cpE
-    0xBC -> (,4) . cpH
-    0xBD -> (,4) . cpL
-    0xBE -> (,8) . cpHL
-    0xBF -> (,4) . cpA
+    0x98 -> (,4) . sbc cpuRegisterB
+    0x99 -> (,4) . sbc cpuRegisterC
+    0x9A -> (,4) . sbc cpuRegisterD
+    0x9B -> (,4) . sbc cpuRegisterE
+    0x9C -> (,4) . sbc cpuRegisterH
+    0x9D -> (,4) . sbc cpuRegisterL
+    0x9E -> (,8) . sbc (mcuLookup cpuRegisterHL)
+    0x9F -> (,4) . sbc cpuRegisterA
+    0xA0 -> (,4) . aAnd cpuRegisterB
+    0xA1 -> (,4) . aAnd cpuRegisterC
+    0xA2 -> (,4) . aAnd cpuRegisterD
+    0xA3 -> (,4) . aAnd cpuRegisterE
+    0xA4 -> (,4) . aAnd cpuRegisterH
+    0xA5 -> (,4) . aAnd cpuRegisterL
+    0xA6 -> (,8) . aAnd (mcuLookup cpuRegisterHL)
+    0xA7 -> (,4) . aAnd cpuRegisterA
+    0xA8 -> (,4) . aXor cpuRegisterB
+    0xA9 -> (,4) . aXor cpuRegisterC
+    0xAA -> (,4) . aXor cpuRegisterD
+    0xAB -> (,4) . aXor cpuRegisterE
+    0xAC -> (,4) . aXor cpuRegisterH
+    0xAD -> (,4) . aXor cpuRegisterL
+    0xAE -> (,8) . aXor (mcuLookup cpuRegisterHL)
+    0xAF -> (,4) . aXor cpuRegisterA
+    0xB0 -> (,4) . aor cpuRegisterB
+    0xB1 -> (,4) . aor cpuRegisterC
+    0xB2 -> (,4) . aor cpuRegisterD
+    0xB3 -> (,4) . aor cpuRegisterE
+    0xB4 -> (,4) . aor cpuRegisterH
+    0xB5 -> (,4) . aor cpuRegisterL
+    0xB6 -> (,8) . aor (mcuLookup cpuRegisterHL)
+    0xB7 -> (,4) . aor cpuRegisterA
+    0xB8 -> (,4) . acp cpuRegisterB
+    0xB9 -> (,4) . acp cpuRegisterC
+    0xBA -> (,4) . acp cpuRegisterD
+    0xBB -> (,4) . acp cpuRegisterE
+    0xBC -> (,4) . acp cpuRegisterH
+    0xBD -> (,4) . acp cpuRegisterL
+    0xBE -> (,8) . acp (mcuLookup cpuRegisterHL)
+    0xBF -> (,4) . acp cpuRegisterA
     0xC0 -> (,8) . retNZ
-    0xC1 -> (,12) . popBC
+    0xC1 -> (,12) . pop cpuRegisterBC
     0xC2 -> (,12) . jpNZa16
     0xC3 -> (,12) . jpa16
     0xC4 -> (,12) . callNZa16
-    0xC5 -> (,16) . pushBC
+    0xC5 -> (,16) . push cpuRegisterBC
     0xC6 -> (,8) . addAd8
-    0xC7 -> (,32) . rst00
+    0xC7 -> (,32) . rst 0x00
     0xC8 -> (,8) . retZ
     0xC9 -> (,8) . ret
     0xCA -> (,12) . jpZa16
@@ -254,44 +254,44 @@ execInstruction opcode =
     0xCC -> (,12) . callZa16
     0xCD -> (,12) . calla16
     0xCE -> (,8) . adcAd8
-    0xCF -> (,32) . rst08
+    0xCF -> (,32) . rst 0x08
     0xD0 -> (,8) . retNC
-    0xD1 -> (,12) . popDE
+    0xD1 -> (,12) . pop cpuRegisterDE
     0xD2 -> (,12) . jpNCa16
     0xD4 -> (,12) . callNCa16
-    0xD5 -> (,16) . pushDE
+    0xD5 -> (,16) . push cpuRegisterDE
     0xD6 -> (,8) . subd8
-    0xD7 -> (,32) . rst10
+    0xD7 -> (,32) . rst 0x10
     0xD8 -> (,8) . retC
     0xD9 -> (,8) . reti
     0xDA -> (,12) . jpCa16
     0xDC -> (,12) . callCa16
     0xDE -> (,8) . sbcAd8 -- CPU Manual gave ?? for this ...
-    0xDF -> (,32) . rst18
+    0xDF -> (,32) . rst 0x18
     0xE0 -> (,12) . ldha8A
-    0xE1 -> (,12) . popHL
+    0xE1 -> (,12) . pop cpuRegisterHL
     0xE2 -> (,8) . ldhCA
-    0xE5 -> (,16) . pushHL
+    0xE5 -> (,16) . push cpuRegisterHL
     0xE6 -> (,8) . andd8
-    0xE7 -> (,32) . rst20
+    0xE7 -> (,32) . rst 0x20
     0xE8 -> (,16) . addSPr8
     0xE9 -> (,4) . jpHL
     0xEA -> (,16) . lda16A
     0xEE -> (,8) . xord8
-    0xEF -> (,32) . rst28
+    0xEF -> (,32) . rst 0x28
     0xF0 -> (,12) . ldhAa8
-    0xF1 -> (,12) . popAF
+    0xF1 -> (,12) . pop cpuRegisterAF
     0xF2 -> (,8) . ldhAC
     0xF3 -> (,4) . di
-    0xF5 -> (,16) . pushAF
+    0xF5 -> (,16) . push cpuRegisterAF
     0xF6 -> (,8) . ord8
-    0xF7 -> (,32) . rst30
+    0xF7 -> (,32) . rst 0x30
     0xF8 -> (,12) . ldHLSPplusr8
     0xF9 -> (,8) . ldSPHL
     0xFA -> (,16) . ldAa16
     0xFB -> (,4) . ei
     0xFE -> (,8) . cpd8
-    0xFF -> (,32) . rst38
+    0xFF -> (,32) . rst 0x38
     _ -> undefined
 
 nop :: CPU -> CPU
@@ -596,30 +596,6 @@ sbc reg cpu =
     op2 = cpu ^. reg
     cy = bool 0 1 $ cpu ^. cpuFlagC
 
-sbcB :: CPU -> CPU
-sbcB = sbc cpuRegisterB
-
-sbcC :: CPU -> CPU
-sbcC = sbc cpuRegisterC
-
-sbcD :: CPU -> CPU
-sbcD = sbc cpuRegisterD
-
-sbcE :: CPU -> CPU
-sbcE = sbc cpuRegisterE
-
-sbcH :: CPU -> CPU
-sbcH = sbc cpuRegisterH
-
-sbcL :: CPU -> CPU
-sbcL = sbc cpuRegisterL
-
-sbcHL :: CPU -> CPU
-sbcHL = sbc (mcuLookup cpuRegisterHL)
-
-sbcA :: CPU -> CPU
-sbcA = sbc cpuRegisterA
-
 sbcAd8 :: CPU -> CPU
 sbcAd8 cpu = cpu' & sbc (to (const d8))
   where
@@ -635,30 +611,6 @@ aAnd reg cpu =
   where
     op1 = cpu ^. cpuRegisterA
     op2 = cpu ^. reg
-
-andB :: CPU -> CPU
-andB = aAnd cpuRegisterB
-
-andC :: CPU -> CPU
-andC = aAnd cpuRegisterC
-
-andD :: CPU -> CPU
-andD = aAnd cpuRegisterD
-
-andE :: CPU -> CPU
-andE = aAnd cpuRegisterE
-
-andH :: CPU -> CPU
-andH = aAnd cpuRegisterH
-
-andL :: CPU -> CPU
-andL = aAnd cpuRegisterL
-
-andHL :: CPU -> CPU
-andHL = aAnd (mcuLookup cpuRegisterHL)
-
-andA :: CPU -> CPU
-andA = aAnd cpuRegisterA
 
 andd8 :: CPU -> CPU
 andd8 cpu = cpu' & aAnd (to (const d8))
@@ -676,30 +628,6 @@ aXor reg cpu =
     op1 = cpu ^. cpuRegisterA
     op2 = cpu ^. reg
 
-xorB :: CPU -> CPU
-xorB = aXor cpuRegisterB
-
-xorC :: CPU -> CPU
-xorC = aXor cpuRegisterC
-
-xorD :: CPU -> CPU
-xorD = aXor cpuRegisterD
-
-xorE :: CPU -> CPU
-xorE = aXor cpuRegisterE
-
-xorH :: CPU -> CPU
-xorH = aXor cpuRegisterH
-
-xorL :: CPU -> CPU
-xorL = aXor cpuRegisterL
-
-xorHL :: CPU -> CPU
-xorHL = aXor (mcuLookup cpuRegisterHL)
-
-xorA :: CPU -> CPU
-xorA = aXor cpuRegisterA
-
 xord8 :: CPU -> CPU
 xord8 cpu = cpu' & aXor (to (const d8))
   where
@@ -716,30 +644,6 @@ aor reg cpu =
     op1 = cpu ^. cpuRegisterA
     op2 = cpu ^. reg
 
-orB :: CPU -> CPU
-orB = aor cpuRegisterB
-
-orC :: CPU -> CPU
-orC = aor cpuRegisterC
-
-orD :: CPU -> CPU
-orD = aor cpuRegisterD
-
-orE :: CPU -> CPU
-orE = aor cpuRegisterE
-
-orH :: CPU -> CPU
-orH = aor cpuRegisterH
-
-orL :: CPU -> CPU
-orL = aor cpuRegisterL
-
-orHL :: CPU -> CPU
-orHL = aor (mcuLookup cpuRegisterHL)
-
-orA :: CPU -> CPU
-orA = aor cpuRegisterA
-
 ord8 :: CPU -> CPU
 ord8 cpu = cpu' & aor (to (const d8))
   where
@@ -755,30 +659,6 @@ acp reg cpu =
   where
     op1 = cpu ^. cpuRegisterA
     op2 = cpu ^. reg
-
-cpB :: CPU -> CPU
-cpB = acp cpuRegisterB
-
-cpC :: CPU -> CPU
-cpC = acp cpuRegisterC
-
-cpD :: CPU -> CPU
-cpD = acp cpuRegisterD
-
-cpE :: CPU -> CPU
-cpE = acp cpuRegisterE
-
-cpH :: CPU -> CPU
-cpH = acp cpuRegisterH
-
-cpL :: CPU -> CPU
-cpL = acp cpuRegisterL
-
-cpHL :: CPU -> CPU
-cpHL = acp (mcuLookup cpuRegisterHL)
-
-cpA :: CPU -> CPU
-cpA = acp cpuRegisterA
 
 cpd8 :: CPU -> CPU
 cpd8 cpu = cpu' & acp (to (const d8))
@@ -912,35 +792,11 @@ pop reg cpu =
     lsb = cpu ^. mcuLookup cpuSP
     msb = cpu ^. mcuLookup (cpuSP . adding 1)
 
-popBC :: CPU -> CPU
-popBC = pop cpuRegisterBC
-
-popDE :: CPU -> CPU
-popDE = pop cpuRegisterDE
-
-popHL :: CPU -> CPU
-popHL = pop cpuRegisterHL
-
-popAF :: CPU -> CPU
-popAF = pop cpuRegisterAF
-
 push :: Lens' CPU Word16 -> CPU -> CPU
 push reg cpu =
   cpu & mcuWrite (cpuSP . subtracting 1) (reg . to splitWord16 . _1)
     & mcuWrite (cpuSP . subtracting 2) (reg . to splitWord16 . _2)
     & cpuSP -~ 2
-
-pushBC :: CPU -> CPU
-pushBC = push cpuRegisterBC
-
-pushDE :: CPU -> CPU
-pushDE = push cpuRegisterDE
-
-pushHL :: CPU -> CPU
-pushHL = push cpuRegisterHL
-
-pushAF :: CPU -> CPU
-pushAF = push cpuRegisterAF
 
 calla16 :: CPU -> CPU
 calla16 cpu =
@@ -982,30 +838,6 @@ rst lsb cpu =
     & mcuWrite (cpuSP . subtracting 2) (cpuPC . to splitWord16 . _2)
     & cpuSP -~ 2
     & cpuPC .~ mkWord16 0x00 lsb
-
-rst00 :: CPU -> CPU
-rst00 = rst 0x00
-
-rst08 :: CPU -> CPU
-rst08 = rst 0x08
-
-rst10 :: CPU -> CPU
-rst10 = rst 0x10
-
-rst18 :: CPU -> CPU
-rst18 = rst 0x18
-
-rst20 :: CPU -> CPU
-rst20 = rst 0x20
-
-rst28 :: CPU -> CPU
-rst28 = rst 0x28
-
-rst30 :: CPU -> CPU
-rst30 = rst 0x30
-
-rst38 :: CPU -> CPU
-rst38 = rst 0x38
 
 ei :: CPU -> CPU
 ei cpu = cpu & cpuIME .~ True

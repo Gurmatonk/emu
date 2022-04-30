@@ -30,7 +30,8 @@ data MCU = MCU
     _mcuClock :: Clock,
     _mcuSerial :: Serial,
     _mcuAPU :: APU,
-    _mcuJoypad :: Joypad
+    _mcuJoypad :: Joypad,
+    _mcuBootRom :: Word8 -- FF50
   }
   deriving (Show)
 

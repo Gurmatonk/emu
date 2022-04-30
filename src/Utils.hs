@@ -37,3 +37,9 @@ mkWord16 hi lo = ((fromIntegral hi :: Word16) `shiftL` 8) + fromIntegral lo
 
 splitWord16 :: Word16 -> (Word8, Word8)
 splitWord16 w = (fromIntegral ((w .&. 0xFF00) `shiftR` 8), fromIntegral (w .&. 0x00FF))
+
+swapWord8 :: Word8 -> Word8
+swapWord8 w = lower + higher
+  where
+    lower = (w .&. 0xF0) `shiftR` 4
+    higher = (w .&. 0x0F) `shiftL` 4
