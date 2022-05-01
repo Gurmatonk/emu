@@ -5,6 +5,7 @@ import Data.Bits (bit)
 import Data.Word (Word8)
 import Types
 import Utils (bitwiseValue, dualBit)
+import Data.Bool (bool)
 
 initClock :: Clock
 initClock =
@@ -17,18 +18,20 @@ initClock =
       _clockElapsedCyclesMod = 0
     }
 
-updateClock :: Cycles -> Clock -> Clock
+updateClock :: Cycles -> Clock -> (Clock, TimaInterrupt)
 updateClock c clock =
-  clock & clockElapsedCycles .~ newCycles
+  (clock & clockElapsedCycles .~ newCycles
     & clockElapsedCyclesMod .~ newCyclesMod
     & clockDivider +~ fromIntegral incDivider
-    & updateTimer
+    & updateTimer,
+    bool NoTimaInterrupt TimaInterrupt timaOverflow
+  )
   where
     updateTimer clock' =
       if clock' ^. clockTimerEnabled
         then
           clock' & clockElapsedCyclesMod .~ newCyclesMod
-            & clockTimer .~ if timaOverflow then clock ^. clockTimerModulo else newTima -- TODO: Also request interrupt if timaOverflow
+            & clockTimer .~ if timaOverflow then clock ^. clockTimerModulo else newTima
         else clock'
     newCycles = ((clock ^. clockElapsedCycles) + c) `mod` 256
     incDivider = ((clock ^. clockElapsedCycles) + c) `div` 256

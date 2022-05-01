@@ -31,7 +31,9 @@ data MCU = MCU
     _mcuSerial :: Serial,
     _mcuAPU :: APU,
     _mcuJoypad :: Joypad,
-    _mcuBootRom :: Word8 -- FF50
+    _mcuBootRom :: Word8, -- FF50
+    _mcuInterruptFlag :: Word8, -- FF0F
+    _mcuInterruptEnable :: Word8 -- FFFF
   }
   deriving (Show)
 
@@ -69,6 +71,10 @@ data PPU = PPU
     _ppuElapsedCycles :: Cycles -- PPU takes 456 cycles to do a scanline, hence we need to keep track
   }
   deriving (Show)
+
+-- TODO: Maybe improve this type...
+data PPUInterrupts = LCDStatInterrupt | VBlankInterrupt | LCDStatAndVBlankInterrupt | NoPPUInterrupt
+  deriving (Show, Eq)
 
 type Position = Word8
 
@@ -115,7 +121,11 @@ data Clock = Clock
 
 type Cycles = Int
 
+data TimaInterrupt = TimaInterrupt | NoTimaInterrupt
+  deriving (Eq, Show)
+
 data ClockFrequency = ClockBy16 | ClockBy64 | ClockBy256 | ClockBy1024
+  deriving (Eq, Show)
 
 data Serial = Serial
   { _serialTransfer :: Word8, -- FF01

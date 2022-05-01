@@ -53,3 +53,13 @@ mcuLookup w = to (\c -> MCU.addressLookup (c ^. w) (c ^. cpuMCU))
 
 mcuWrite :: Getter CPU Word16 -> Getter CPU Word8 -> CPU -> CPU
 mcuWrite a v cpu = cpu & cpuMCU .~ MCU.addressWrite (cpu ^. a) (cpu ^. v) (cpu ^. cpuMCU)
+
+interruptFlagVBlank :: Lens' MCU Bool
+interruptFlagVBlank = mcuInterruptFlag . bitwiseValue (bit 0)
+
+interruptFlagLCDStat :: Lens' MCU Bool
+interruptFlagLCDStat = mcuInterruptFlag . bitwiseValue (bit 1)
+
+interruptFlagTimer :: Lens' MCU Bool
+interruptFlagTimer = mcuInterruptFlag . bitwiseValue (bit 2)
+

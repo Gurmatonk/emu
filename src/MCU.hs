@@ -10,6 +10,7 @@ import APU (initAPU, apuLookup, apuWrite)
 import Cartridge (initCartridge)
 import Clock (clockLookup, clockWrite, initClock)
 import Control.Lens
+import Data.Bits (shiftL, bit)
 import Data.Ix (inRange)
 import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
@@ -18,9 +19,24 @@ import PPU (initPpu, lcdLookup, lcdWrite, oamLookup, oamWrite, vRamLookup, vRamW
 import RAM (ramLookup, ramWrite)
 import Serial (initSerial, serialLookup, serialWrite)
 import Types
+import Data.Bool (bool)
+import Numeric (showHex)
+import Utils (bitwiseValue)
 
 initMcu :: MCU
-initMcu = MCU mempty initCartridge initPpu initClock initSerial initAPU 0xCF 0xFF
+initMcu = 
+  MCU
+    { _mcuRAM = mempty,
+      _mcuCartridge = initCartridge,
+      _mcuPPU = initPpu,
+      _mcuClock = initClock,
+      _mcuSerial = initSerial,
+      _mcuAPU = initAPU,
+      _mcuJoypad = 0xCF,
+      _mcuBootRom = 0xFF, -- FF50
+      _mcuInterruptFlag = 0xE1, -- FF0F
+      _mcuInterruptEnable = 0x00 -- FFFF
+    }
 
 -- https://gbdev.io/pandocs/Memory_Map.html
 -- TODO: Mapping of lookups/writes by Address:
@@ -53,6 +69,9 @@ inRam = inRange (0xC000, 0xDFFF)
 inMirrorRam :: Word16 -> Bool
 inMirrorRam = inRange (0xE000, 0xFDFF)
 
+dmaTransfer :: Word16 -> Bool
+dmaTransfer = (==) 0xFF46
+
 inOAM :: Word16 -> Bool
 inOAM = inRange (0xFE00, 0xFE9F)
 
@@ -77,6 +96,19 @@ inLCD = inRange (0xFF40, 0xFF4B)
 inBootRom :: Word16 -> Bool
 inBootRom = (==) 0xFF50
 
+interruptFlag :: Word16 -> Bool
+interruptFlag = (==) 0xFF0F
+
+interruptEnable :: Word16 -> Bool
+interruptEnable = (==) 0xFFFF
+
+transferDMA :: Word8 -> MCU -> MCU
+transferDMA w mcu =
+  foldr (\i m -> flip (addressWrite (targetAddress + i)) m . addressLookup (sourceAddress + i) $ m) mcu [0..0xA0]
+  where
+    sourceAddress = (fromIntegral w :: Word16) `shiftL` 8
+    targetAddress = 0xFE00
+
 addressLookup :: Word16 -> MCU -> Word8
 addressLookup a
   | inRomBank00 a = fromMaybe 0xFF . view (mcuCartridge . cartridgeROM00 . to (M.lookup a))
@@ -84,7 +116,7 @@ addressLookup a
   | inVRam a = view (mcuPPU . to (vRamLookup a))
   | inCartridgeRam a = undefined
   | inRam a = view (mcuRAM . to (ramLookup a))
-  | inMirrorRam a = undefined
+  | inMirrorRam a = view (mcuRAM . to (ramLookup (a - 2000)))
   | inOAM a = view (mcuPPU . to (oamLookup a))
   | inProhibited a = const 0xFF -- For now, actually shows super-weird behavior according to pandocs, see map
   | inJoypad a = view mcuJoypad
@@ -93,7 +125,9 @@ addressLookup a
   | inAPU a = view (mcuAPU . to (apuLookup a))
   | inLCD a = view (mcuPPU . to (lcdLookup a))
   | inBootRom a = view mcuBootRom
-  | otherwise = const 0xFF
+  | interruptFlag a = view mcuInterruptFlag
+  | interruptEnable a = view mcuInterruptEnable
+  | otherwise = error ("Unhandled MCU read from address: " <> showHex a "")
 
 addressWrite :: Word16 -> Word8 -> MCU -> MCU
 addressWrite a w
@@ -102,8 +136,8 @@ addressWrite a w
   | inVRam a = mcuPPU %~ vRamWrite a w
   | inCartridgeRam a = undefined
   | inRam a = mcuRAM %~ ramWrite a w
-  | inMirrorRam a = undefined
-  | inOAM a = mcuPPU %~ oamWrite a w
+  | inMirrorRam a = mcuRAM %~ ramWrite (a - 2000) w
+  | inOAM a = bool id (transferDMA w) (dmaTransfer a) . (mcuPPU %~ oamWrite a w)
   | inProhibited a = id -- probably?
   | inJoypad a = mcuJoypad .~ w -- TODO: Bits 3-0 should be read-only
   | inSerialTransfer a = mcuSerial %~ serialWrite a w
@@ -111,4 +145,6 @@ addressWrite a w
   | inAPU a = mcuAPU %~ apuWrite a w
   | inLCD a = mcuPPU %~ lcdWrite a w
   | inBootRom a = mcuBootRom .~ w
-  | otherwise = id
+  | interruptFlag a = mcuInterruptFlag .~ w
+  | interruptEnable a = mcuInterruptEnable .~ w
+  | otherwise = error ("Unhandled MCU write to address: " <> showHex a "")

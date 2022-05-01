@@ -98,7 +98,7 @@ lcdLookup a ppu
   | a == 0xFF43 = ppu ^. ppuScrollX
   | a == 0xFF44 = ppu ^. ppuLCDY
   | a == 0xFF45 = ppu ^. ppuLYCompare
-  | a == 0xFF46 = undefined -- TODO: DMA
+  | a == 0xFF46 = ppu ^. ppuDMA
   | a == 0xFF47 = ppu ^. ppuBGPalette
   | a == 0xFF48 = ppu ^. ppuOBJPalette0
   | a == 0xFF49 = ppu ^. ppuOBJPalette1
@@ -114,7 +114,7 @@ lcdWrite a w ppu
   | a == 0xFF43 = ppu & ppuScrollX .~ w
   | a == 0xFF44 = ppu -- Read only
   | a == 0xFF45 = ppu & ppuLYCompare .~ w
-  | a == 0xFF46 = undefined -- TODO: DMA
+  | a == 0xFF46 = ppu & ppuDMA .~ w
   | a == 0xFF47 = ppu & ppuBGPalette .~ w
   | a == 0xFF48 = ppu & ppuOBJPalette0 .~ w
   | a == 0xFF49 = ppu & ppuOBJPalette1 .~ w
@@ -269,26 +269,29 @@ withinWindow ppu =
   ppu ^. ppuLCDX > ppu ^. ppuWindowX - 7
     && ppu ^. ppuLCDY > ppu ^. ppuWindowY -- Unclear whether this is needed, pandocs only mention the X coordinate...
 
-updatePPU :: Cycles -> PPU -> PPU
+updatePPU :: Cycles -> PPU -> (PPU, PPUInterrupts)
 updatePPU c ppu =
   if ppu ^. ppuDisplayEnableFlag
   then execCycles c . updateLYC . updateMode $ ppu
   else
     -- reset things, display is off
-    ppu & ppuElapsedCycles .~ 0
+    (ppu & ppuElapsedCycles .~ 0
       & ppuLCDY .~ 0
       & ppuLCDX .~ 0
-      & ppuMode .~ VBlank
+      & ppuMode .~ VBlank,
+      NoPPUInterrupt)
 
-execCycles :: Cycles -> PPU -> PPU
+execCycles :: Cycles -> PPU -> (PPU, PPUInterrupts)
 execCycles c ppu =
   if newCycles >= 456
   then
-    ppu & ppuElapsedCycles .~ newCycles `mod` 456
-      & ppuLCDY .~ newScanline `mod` 154 -- TODO: Request interrupt if newScanline == 144
-      & if newScanline < 144 then drawScanline else id
+    (ppu & ppuElapsedCycles .~ newCycles `mod` 456
+      & ppuLCDY .~ newScanline `mod` 154
+      & if newScanline < 144 then drawScanline else id,
+      bool NoPPUInterrupt VBlankInterrupt (newScanline == 144)
+    )
   else
-    ppu & ppuElapsedCycles .~ newCycles
+    (ppu & ppuElapsedCycles .~ newCycles, NoPPUInterrupt)
   where
     newScanline = ppu ^. ppuLCDY + 1
     newCycles = ppu ^. ppuElapsedCycles + c

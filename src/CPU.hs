@@ -11,7 +11,7 @@ import Data.Bool (bool)
 import Data.Int (Int8)
 import Data.Tuple (swap)
 import Data.Word (Word16, Word8)
-import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterAF, cpuRegisterBC, cpuRegisterDE, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup)
+import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterAF, cpuRegisterBC, cpuRegisterDE, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup, interruptFlagTimer, interruptFlagVBlank, interruptFlagLCDStat)
 import qualified MCU
 import PPU (updatePPU)
 import Types
@@ -37,12 +37,36 @@ initCpu =
 
 runInstruction :: CPU -> (CPU, Cycles)
 runInstruction cpu =
-  ( newCpu & cpuMCU . mcuClock %~ updateClock cycles
-      & cpuMCU . mcuPPU %~ updatePPU cycles, -- TODO: Interrupt Handling should go here
+  ( newCpu & moveClock cycles
+      & movePPU cycles
+      & handleInterrupts,
     cycles
   )
   where
     (newCpu, cycles) = uncurry execInstruction . swap . pcLookup $ cpu
+
+moveClock :: Cycles -> CPU -> CPU
+moveClock cycles cpu =
+  cpu & cpuMCU . mcuClock .~ newClock
+    & bool id (cpuMCU . interruptFlagTimer .~ True) (timaInterrupt == TimaInterrupt) 
+  where
+    (newClock, timaInterrupt) = updateClock cycles (cpu ^. cpuMCU . mcuClock)
+
+movePPU :: Cycles -> CPU -> CPU
+movePPU cycles cpu =
+  cpu & cpuMCU . mcuPPU .~ newPPU
+    & setPPUInterrupts ppuInterrupts
+  where
+    (newPPU, ppuInterrupts) = updatePPU cycles (cpu ^. cpuMCU . mcuPPU)
+
+setPPUInterrupts :: PPUInterrupts -> CPU -> CPU
+setPPUInterrupts NoPPUInterrupt cpu = cpu
+setPPUInterrupts VBlankInterrupt cpu = cpu & cpuMCU . interruptFlagVBlank .~ True
+setPPUInterrupts LCDStatInterrupt cpu = cpu & cpuMCU . interruptFlagLCDStat .~ True
+setPPUInterrupts LCDStatAndVBlankInterrupt cpu = cpu & cpuMCU . interruptFlagVBlank .~ True & cpuMCU . interruptFlagLCDStat .~ True
+
+handleInterrupts :: CPU -> CPU
+handleInterrupts = undefined
 
 execInstruction :: Word8 -> CPU -> (CPU, Cycles)
 execInstruction opcode =
