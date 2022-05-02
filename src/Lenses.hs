@@ -63,3 +63,8 @@ interruptFlagLCDStat = mcuInterruptFlag . bitwiseValue (bit 1)
 interruptFlagTimer :: Lens' MCU Bool
 interruptFlagTimer = mcuInterruptFlag . bitwiseValue (bit 2)
 
+interruptFlagSerial :: Lens' MCU Bool
+interruptFlagSerial = mcuInterruptFlag . bitwiseValue (bit 3)
+
+interruptFlagJoypad :: Lens' MCU Bool
+interruptFlagJoypad = mcuInterruptFlag . bitwiseValue (bit 4)

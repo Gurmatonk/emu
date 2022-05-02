@@ -11,7 +11,7 @@ import Data.Bool (bool)
 import Data.Int (Int8)
 import Data.Tuple (swap)
 import Data.Word (Word16, Word8)
-import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterAF, cpuRegisterBC, cpuRegisterDE, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup, interruptFlagTimer, interruptFlagVBlank, interruptFlagLCDStat)
+import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterAF, cpuRegisterBC, cpuRegisterDE, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup, interruptFlagTimer, interruptFlagVBlank, interruptFlagLCDStat, interruptFlagSerial, interruptFlagJoypad)
 import qualified MCU
 import PPU (updatePPU)
 import Types
@@ -66,7 +66,57 @@ setPPUInterrupts LCDStatInterrupt cpu = cpu & cpuMCU . interruptFlagLCDStat .~ T
 setPPUInterrupts LCDStatAndVBlankInterrupt cpu = cpu & cpuMCU . interruptFlagVBlank .~ True & cpuMCU . interruptFlagLCDStat .~ True
 
 handleInterrupts :: CPU -> CPU
-handleInterrupts = undefined
+handleInterrupts cpu =
+  if cpu ^. cpuIME
+    then cpu & handleVBlank
+          & handleLCDSTAT
+          & handleTimer
+          & handleSerial
+          & handleJoypad
+    else cpu
+  where
+    -- This might cost additional 5 cycles per handled interrupt?!
+    -- FF0F bit 0 set -> handle VBlank: Push PC to stack, set PC 0x40, reset bit 0
+    handleVBlank c =
+      if c ^. cpuMCU . interruptFlagVBlank
+        then
+          c & cpuMCU . interruptFlagVBlank .~ False
+            & cpuIME .~ False
+            & rst 0x40
+        else c
+  -- FF0F bit 1 set -> handle LCDSTAT: Push PC to stack, set PC 0x48, reset bit 1
+    handleLCDSTAT c =
+      if c ^. cpuMCU . interruptFlagLCDStat
+        then
+          c & cpuMCU . interruptFlagLCDStat .~ False
+            & cpuIME .~ False
+            & rst 0x48
+        else c
+  -- FF0F bit 2 set -> handle Timer: Push PC to stack, set PC 0x50, reset bit 2
+    handleTimer c =
+      if c ^. cpuMCU . interruptFlagTimer
+        then
+          c & cpuMCU . interruptFlagTimer .~ False
+            & cpuIME .~ False
+            & rst 0x50
+        else c
+  -- FF0F bit 3 set -> handle Serial: Push PC to stack, set PC 0x58, reset bit 3
+    handleSerial c =
+      if c ^. cpuMCU . interruptFlagSerial
+        then
+          c & cpuMCU . interruptFlagSerial .~ False
+            & cpuIME .~ False
+            & rst 0x58
+        else c
+  -- FF0F bit 4 set -> handle Joypad: Push PC to stack, set PC 0x60, reset bit 4
+    handleJoypad c =
+      if c ^. cpuMCU . interruptFlagJoypad
+        then
+          c & cpuMCU . interruptFlagJoypad .~ False
+            & cpuIME .~ False
+            & rst 0x60
+        else c
+
 
 execInstruction :: Word8 -> CPU -> (CPU, Cycles)
 execInstruction opcode =
