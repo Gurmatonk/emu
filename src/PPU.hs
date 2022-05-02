@@ -272,7 +272,7 @@ withinWindow ppu =
 updatePPU :: Cycles -> PPU -> (PPU, PPUInterrupts)
 updatePPU c ppu =
   if ppu ^. ppuDisplayEnableFlag
-  then execCycles c . updateLYC . updateMode $ ppu
+  then (cyclePPU, foldr (<>) cycleInterrupts [lycInterrupts, modeInterrupts])
   else
     -- reset things, display is off
     (ppu & ppuElapsedCycles .~ 0
@@ -280,6 +280,20 @@ updatePPU c ppu =
       & ppuLCDX .~ 0
       & ppuMode .~ VBlank,
       NoPPUInterrupt)
+  where
+    (cyclePPU, cycleInterrupts) = execCycles c lycPPU
+    (lycPPU, lycInterrupts) = updateLYC modePPU
+    (modePPU, modeInterrupts) = updateMode ppu
+
+instance Semigroup PPUInterrupts where
+  NoPPUInterrupt <> i = i
+  i <> NoPPUInterrupt = i
+  LCDStatInterrupt <> LCDStatInterrupt = LCDStatInterrupt
+  LCDStatInterrupt <> VBlankInterrupt = LCDStatAndVBlankInterrupt
+  VBlankInterrupt <> VBlankInterrupt = VBlankInterrupt
+  VBlankInterrupt <> LCDStatInterrupt = LCDStatAndVBlankInterrupt
+  LCDStatAndVBlankInterrupt <> _ = LCDStatAndVBlankInterrupt
+  _ <> LCDStatAndVBlankInterrupt = LCDStatAndVBlankInterrupt
 
 execCycles :: Cycles -> PPU -> (PPU, PPUInterrupts)
 execCycles c ppu =
@@ -296,22 +310,24 @@ execCycles c ppu =
     newScanline = ppu ^. ppuLCDY + 1
     newCycles = ppu ^. ppuElapsedCycles + c
 
-updateLYC :: PPU -> PPU
+updateLYC :: PPU -> (PPU, PPUInterrupts)
 updateLYC ppu
-  | ppu ^. ppuLCDY == ppu ^. ppuLYCompare = ppu & ppuLYCLYFlag .~ True -- TODO: Request interrupt if LCDC 6 is set
-  | otherwise = ppu & ppuLYCLYFlag .~ False
+  | ppu ^. ppuLCDY == ppu ^. ppuLYCompare = 
+    (ppu & ppuLYCLYFlag .~ True, bool NoPPUInterrupt LCDStatInterrupt (ppu ^. ppuLYCInterrupt))
+  | otherwise = (ppu & ppuLYCLYFlag .~ False, NoPPUInterrupt)
 
-updateMode :: PPU -> PPU
+updateMode :: PPU -> (PPU, PPUInterrupts)
 updateMode ppu
-  -- Scanlines 144-153 are always VBlank TODO: Request interrupt if != oldMode and LCDC 4 is set
-  | ppu ^. ppuLCDY >= 144 = ppu & ppuMode .~ VBlank
-  -- TODO: Request interrupt if != oldMode and LCDC 5 is set
-  | ppu ^. ppuElapsedCycles <= 80 = ppu & ppuMode .~ SearchingOAM
+  -- Scanlines 144-153 are always VBlank
+  | ppu ^. ppuLCDY >= 144 = 
+    (ppu & ppuMode .~ VBlank, bool NoPPUInterrupt VBlankInterrupt (ppu ^. ppuMode1VBlankInterrupt && (oldMode /= VBlank)))
+  | ppu ^. ppuElapsedCycles <= 80 = 
+    (ppu & ppuMode .~ SearchingOAM, bool NoPPUInterrupt LCDStatInterrupt (ppu ^. ppuMode2OAMInterrupt && (oldMode /= SearchingOAM)))
   -- Note: not entirely correct, assumes fixed duration of 172 dots/cycles for SearchingOAM
   -- see https://gbdev.io/pandocs/pixel_fifo.html
-  | ppu ^. ppuElapsedCycles <= 252 = ppu & ppuMode .~ LCDTransfer
-  -- TODO: Request interrupt if != oldMode and LCDC 3 is set
-  | otherwise = ppu & ppuMode .~ HBlank
+  | ppu ^. ppuElapsedCycles <= 252 = (ppu & ppuMode .~ LCDTransfer, NoPPUInterrupt)
+  | otherwise = 
+    (ppu & ppuMode .~ HBlank, bool NoPPUInterrupt LCDStatInterrupt (ppu ^. ppuMode0HBlankInterrupt && (oldMode /= HBlank)))
   where
     oldMode = ppu ^. ppuMode
 
