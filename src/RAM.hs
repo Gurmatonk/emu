@@ -1,5 +1,8 @@
 module RAM
-  ( ramLookup,
+  ( 
+    hiramLookup,
+    hiramWrite,
+    ramLookup,
     ramWrite,
   )
 where
@@ -17,3 +20,9 @@ ramLookup w = fromMaybe 0xFF . M.lookup w -- TODO: Check if good default
 
 ramWrite :: Word16 -> Word8 -> RAM -> RAM
 ramWrite k v = at k ?~ v
+
+hiramLookup :: Word16 -> RAM -> Word8
+hiramLookup w = fromMaybe 0xFF . M.lookup w -- TODO: Check if good default
+
+hiramWrite :: Word16 -> Word8 -> RAM -> RAM
+hiramWrite k v = at k ?~ v

@@ -16,7 +16,7 @@ import qualified Data.Map as M
 import Data.Maybe (fromMaybe)
 import Data.Word (Word16, Word8)
 import PPU (initPpu, lcdLookup, lcdWrite, oamLookup, oamWrite, vRamLookup, vRamWrite)
-import RAM (ramLookup, ramWrite)
+import RAM (ramLookup, ramWrite, hiramLookup, hiramWrite)
 import Serial (initSerial, serialLookup, serialWrite)
 import Types
 import Data.Bool (bool)
@@ -24,9 +24,10 @@ import Numeric (showHex)
 import Utils (bitwiseValue)
 
 initMcu :: MCU
-initMcu = 
+initMcu =
   MCU
     { _mcuRAM = mempty,
+      _mcuHIRAM = mempty,
       _mcuCartridge = initCartridge,
       _mcuPPU = initPpu,
       _mcuClock = initClock,
@@ -96,6 +97,14 @@ inLCD = inRange (0xFF40, 0xFF4B)
 inBootRom :: Word16 -> Bool
 inBootRom = (==) 0xFF50
 
+inHiRam :: Word16 -> Bool
+inHiRam = inRange (0xFF80, 0xFFFE)
+
+-- Collection of Addresses that just do nothing, but are sometimes erroneously written to anyway
+-- Tetris writes to 0xFF7F, which apparently is an off-by-one-error within Tetris' code (!)
+inDoesNothing :: Word16 -> Bool
+inDoesNothing = (==) 0xFF7F
+
 interruptFlag :: Word16 -> Bool
 interruptFlag = (==) 0xFF0F
 
@@ -127,6 +136,8 @@ addressLookup a
   | inBootRom a = view mcuBootRom
   | interruptFlag a = view mcuInterruptFlag
   | interruptEnable a = view mcuInterruptEnable
+  | inHiRam a = view (mcuHIRAM . to (hiramLookup a))
+  | inDoesNothing a = const 0xFF
   | otherwise = error ("Unhandled MCU read from address: " <> showHex a "")
 
 addressWrite :: Word16 -> Word8 -> MCU -> MCU
@@ -147,4 +158,6 @@ addressWrite a w
   | inBootRom a = mcuBootRom .~ w
   | interruptFlag a = mcuInterruptFlag .~ w
   | interruptEnable a = mcuInterruptEnable .~ w
+  | inHiRam a = mcuHIRAM %~ hiramWrite a w
+  | inDoesNothing a = id
   | otherwise = error ("Unhandled MCU write to address: " <> showHex a "")

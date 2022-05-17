@@ -25,6 +25,7 @@ data CPU = CPU
 
 data MCU = MCU
   { _mcuRAM :: RAM,
+    _mcuHIRAM :: RAM,
     _mcuCartridge :: Cartridge,
     _mcuPPU :: PPU,
     _mcuClock :: Clock,
@@ -40,6 +41,7 @@ data MCU = MCU
 type Address = Word16
 
 type RAM = Map Address Word8
+
 type Joypad = Word8
 
 data Cartridge = Cartridge
@@ -71,6 +73,9 @@ data PPU = PPU
     _ppuElapsedCycles :: Cycles -- PPU takes 456 cycles to do a scanline, hence we need to keep track
   }
   deriving (Show)
+
+data TimaInterrupt = TimaInterrupt | NoTimaInterrupt
+  deriving (Eq, Show)
 
 -- TODO: Maybe improve this type...
 data PPUInterrupts = LCDStatInterrupt | VBlankInterrupt | LCDStatAndVBlankInterrupt | NoPPUInterrupt
@@ -120,9 +125,6 @@ data Clock = Clock
   deriving (Show)
 
 type Cycles = Int
-
-data TimaInterrupt = TimaInterrupt | NoTimaInterrupt
-  deriving (Eq, Show)
 
 data ClockFrequency = ClockBy16 | ClockBy64 | ClockBy256 | ClockBy1024
   deriving (Eq, Show)
