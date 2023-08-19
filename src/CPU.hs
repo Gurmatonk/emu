@@ -32,7 +32,8 @@ initCpu =
       _cpuSP = 0xFFFE,
       _cpuPC = 0x0100,
       _cpuMCU = MCU.initMcu,
-      _cpuIME = False
+      _cpuIME = False,
+      _cpuHalted = False
     }
 
 runInstruction :: CPU -> (CPU, Cycles)
@@ -43,7 +44,10 @@ runInstruction cpu =
     cycles
   )
   where
-    (newCpu, cycles) = uncurry execInstruction . swap . pcLookup $ cpu
+    (newCpu, cycles) =
+      if cpu ^. cpuHalted
+        then (cpu, 4)
+        else uncurry execInstruction . swap . pcLookup $ cpu
 
 moveClock :: Cycles -> CPU -> CPU
 moveClock cycles cpu =
@@ -82,6 +86,7 @@ handleInterrupts cpu =
         then
           c & cpuMCU . interruptFlagVBlank .~ False
             & cpuIME .~ False
+            & cpuHalted .~ False
             & rst 0x40
         else c
   -- FF0F bit 1 set -> handle LCDSTAT: Push PC to stack, set PC 0x48, reset bit 1
@@ -90,6 +95,7 @@ handleInterrupts cpu =
         then
           c & cpuMCU . interruptFlagLCDStat .~ False
             & cpuIME .~ False
+            & cpuHalted .~ False
             & rst 0x48
         else c
   -- FF0F bit 2 set -> handle Timer: Push PC to stack, set PC 0x50, reset bit 2
@@ -98,6 +104,7 @@ handleInterrupts cpu =
         then
           c & cpuMCU . interruptFlagTimer .~ False
             & cpuIME .~ False
+            & cpuHalted .~ False
             & rst 0x50
         else c
   -- FF0F bit 3 set -> handle Serial: Push PC to stack, set PC 0x58, reset bit 3
@@ -106,6 +113,7 @@ handleInterrupts cpu =
         then
           c & cpuMCU . interruptFlagSerial .~ False
             & cpuIME .~ False
+            & cpuHalted .~ False
             & rst 0x58
         else c
   -- FF0F bit 4 set -> handle Joypad: Push PC to stack, set PC 0x60, reset bit 4
@@ -114,6 +122,7 @@ handleInterrupts cpu =
         then
           c & cpuMCU . interruptFlagJoypad .~ False
             & cpuIME .~ False
+            & cpuHalted .~ False
             & rst 0x60
         else c
 
@@ -371,9 +380,8 @@ execInstruction opcode =
 nop :: CPU -> CPU
 nop = id
 
--- TODO: Halt until interrupt occurs!
 halt :: CPU -> CPU
-halt cpu = undefined
+halt cpu = cpu & cpuHalted .~ True
 
 -- TODO: Low power standby - whatever that is
 -- TODO: Reset AND STOP clockDivider (FF04)

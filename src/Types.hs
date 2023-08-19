@@ -19,7 +19,8 @@ data CPU = CPU
     _cpuSP :: Word16,
     _cpuPC :: Word16,
     _cpuMCU :: MCU,
-    _cpuIME :: Bool
+    _cpuIME :: Bool,
+    _cpuHalted :: Bool
   }
   deriving (Show)
 
@@ -57,22 +58,28 @@ data PPU = PPU
     _ppuScrollY :: Position, -- FF42 (R/W) Top position of visible 160x144 area within 256x256 BG map
     _ppuScrollX :: Position, -- FF43 (R/W) Left position of visible 160x144 area within 256x256 BG map
     _ppuLCDY :: Position, -- FF44 (R) Currently drawn scanline. 0-153 -> 144-153 = VBlank
-    _ppuLCDX :: Position, -- No Equivalent register, tracks current pixel X position
     _ppuLYCompare :: Word8, -- FF45 (R/W) LY Compare. If LYC==LY, set flag in STAT and request interrupt if enabled
     _ppuDMA :: Word8, -- TODO FF46
     _ppuBGPalette :: Word8, -- FF47 (R/W) BG Colour Palette
     _ppuOBJPalette0 :: Word8, -- FF48 (R/W) OBJ Colour Palette 0 - Bits 1 0 are ignored, index 0 is always transparent for OBJs
     _ppuOBJPalette1 :: Word8, -- FF49 (R/W) OBJ Colour Palette 1 - Bits 1 0 are ignored, index 0 is always transparent for OBJs
     _ppuWindowY :: Position, -- FF4A (R/W) Top coordinate of Window
-    _ppuWindowX :: Position, -- FF4B (R/W) Left coordinate of Window + 7 (WX == 7 is left-aligned with Screen)
+    _ppuWindowX :: Position, -- FF4B (R/W) Left coordinate of Window - 7 (WX == 7 is left-aligned with Screen)
     _ppuVRAM :: VRAM, -- 8000-9FFF
     _ppuOAM :: OAM, -- FE00-FE9F
-    _ppuBGQueue :: [Pixel],
-    _ppuOAMQueue :: [Pixel],
-    _ppuPixelBuffer :: [Colour], -- final pixel buffer to be output
+    _ppuScreen :: Screen,
     _ppuElapsedCycles :: Cycles -- PPU takes 456 cycles to do a scanline, hence we need to keep track
   }
   deriving (Show)
+
+-- 144 Lines
+newtype Screen = Screen { _unScreen :: [Line] }
+
+instance Show Screen where
+  show = const "SomeScreen"
+
+-- 160 Pixels
+type Line = [Colour]
 
 data TimaInterrupt = TimaInterrupt | NoTimaInterrupt
   deriving (Eq, Show)
@@ -169,3 +176,4 @@ makeLenses ''Clock
 makeLenses ''Pixel
 makeLenses ''Serial
 makeLenses ''APU
+makeLenses ''Screen

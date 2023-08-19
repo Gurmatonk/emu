@@ -1,18 +1,18 @@
 {-# LANGUAGE RankNTypes #-}
 
-module PPU
-  ( PPU,
-    initPpu,
-    lcdLookup,
-    lcdWrite,
-    oamLookup,
-    oamWrite,
-    toByteString,
-    updatePPU,
-    vRamLookup,
-    vRamWrite,
-  )
-where
+module PPU (module PPU) where
+--   ( PPU,
+--     initPpu,
+--     lcdLookup,
+--     lcdWrite,
+--     oamLookup,
+--     oamWrite,
+--     toByteString,
+--     updatePPU,
+--     vRamLookup,
+--     vRamWrite,
+--   )
+-- where
 
 import Control.Lens
 import Data.Bits (bit)
@@ -37,7 +37,6 @@ initPpu =
       _ppuScrollY = 0x00,
       _ppuScrollX = 0x00,
       _ppuLCDY = 0x00,
-      _ppuLCDX = 0x00,
       _ppuLYCompare = 0x00,
       _ppuDMA = 0xFF,
       _ppuBGPalette = 0xFC,
@@ -47,20 +46,9 @@ initPpu =
       _ppuWindowX = 0x00,
       _ppuVRAM = mempty,
       _ppuOAM = mempty,
-      _ppuBGQueue = mempty,
-      _ppuOAMQueue = mempty,
-      _ppuPixelBuffer = testData,
+      _ppuScreen = initialScreen,
       _ppuElapsedCycles = 0
     }
-
-testData :: [Colour]
-testData = [toColour i | i <- [1 ..]]
-  where
-    toColour i
-      | i `mod` 3 == 0 && i `mod` 5 == 0 = Black
-      | i `mod` 3 == 0 = LightGray
-      | i `mod` 5 == 0 = DarkGray
-      | otherwise = White
 
 oamLookup :: Address -> PPU -> Word8
 oamLookup a ppu =
@@ -81,13 +69,13 @@ oamWrite a w ppu =
 vRamLookup :: Word16 -> PPU -> Word8
 vRamLookup a ppu =
   case ppu ^. ppuMode of
-    LCDTransfer -> 0xFF
+    LCDTransfer -> error "VRAM read during LCDTransfer" -- 0xFF
     _ -> fromMaybe 0xFF . view (ppuVRAM . at a) $ ppu
 
 vRamWrite :: Word16 -> Word8 -> PPU -> PPU
 vRamWrite a w ppu =
   case ppu ^. ppuMode of
-    LCDTransfer -> ppu
+    LCDTransfer -> error "VRAM write during LCDTransfer - most likely sync issue?!" -- ppu
     _ -> ppu & ppuVRAM . at a ?~ w
 
 lcdLookup :: Word16 -> PPU -> Word8
@@ -112,7 +100,7 @@ lcdWrite a w ppu
   | a == 0xFF41 = ppu & ppuSTAT .~ w -- TODO: Make bit 0, 1, 2 Read-only
   | a == 0xFF42 = ppu & ppuScrollY .~ w
   | a == 0xFF43 = ppu & ppuScrollX .~ w
-  | a == 0xFF44 = ppu -- Read only
+  | a == 0xFF44 = ppu & ppuLCDY .~ 0 -- Read only, according to this (http://www.codeslinger.co.uk/pages/projects/gameboy/lcd.html) it is reset upon trying to write it
   | a == 0xFF45 = ppu & ppuLYCompare .~ w
   | a == 0xFF46 = ppu & ppuDMA .~ w
   | a == 0xFF47 = ppu & ppuBGPalette .~ w
@@ -122,39 +110,47 @@ lcdWrite a w ppu
   | a == 0xFF4B = ppu & ppuWindowX .~ w
   | otherwise   = undefined
 
+-- init: True
 ppuDisplayEnableFlag :: Lens' PPU Bool
 ppuDisplayEnableFlag = ppuLCDC . bitwiseValue (bit 7)
 
 windowTileMapArea :: Iso' Bool WindowTileMapArea
 windowTileMapArea = boolIso WTMA9C00To9FFF WTMA9800To9BFF
 
+-- init: 9800 to 9BFF
 ppuWindowTileMapArea :: Lens' PPU WindowTileMapArea
 ppuWindowTileMapArea = ppuLCDC . bitwiseValue (bit 6) . windowTileMapArea
 
+-- init: False
 ppuWindowEnableFlag :: Lens' PPU Bool
 ppuWindowEnableFlag = ppuLCDC . bitwiseValue (bit 5)
 
 bGWindowTileDataArea :: Iso' Bool BGWindowTileDataArea
 bGWindowTileDataArea = boolIso TDA8000To8FFF TDA8800To97FF
 
+-- init: 8000 to 8FFF
 ppuBGWindowTileDataArea :: Lens' PPU BGWindowTileDataArea
 ppuBGWindowTileDataArea = ppuLCDC . bitwiseValue (bit 4) . bGWindowTileDataArea
 
 bGTileMapArea :: Iso' Bool BGTileMapArea
 bGTileMapArea = boolIso BTMA9C00To9FFF BTMA9800To9BFF
 
+-- init: 9800 to 9BFF
 ppuBGTileMapArea :: Lens' PPU BGTileMapArea
 ppuBGTileMapArea = ppuLCDC . bitwiseValue (bit 3) . bGTileMapArea
 
 spriteSize :: Iso' Bool SpriteSize
 spriteSize = boolIso Size8x16 Size8x8
 
+-- init: 8x8
 ppuSpriteSize :: Lens' PPU SpriteSize
 ppuSpriteSize = ppuLCDC . bitwiseValue (bit 2) . spriteSize
 
+-- init: False
 ppuSpritesEnableFlag :: Lens' PPU Bool
 ppuSpritesEnableFlag = ppuLCDC . bitwiseValue (bit 1)
 
+-- init: True
 ppuBGWindowEnableFlag :: Lens' PPU Bool
 ppuBGWindowEnableFlag = ppuLCDC . bitwiseValue (bit 0)
 
@@ -264,11 +260,6 @@ ppuOBJ1ColourIndex1 = lens getter setter
     getter ppu = ppu ^. ppuOBJPalette1 . dualBit 3 2 . colour
     setter ppu c = ppu & ppuOBJPalette1 . dualBit 3 2 .~ c ^. from colour
 
-withinWindow :: PPU -> Bool
-withinWindow ppu =
-  ppu ^. ppuLCDX > ppu ^. ppuWindowX - 7
-    && ppu ^. ppuLCDY > ppu ^. ppuWindowY -- Unclear whether this is needed, pandocs only mention the X coordinate...
-
 updatePPU :: Cycles -> PPU -> (PPU, PPUInterrupts)
 updatePPU c ppu =
   if ppu ^. ppuDisplayEnableFlag
@@ -277,7 +268,6 @@ updatePPU c ppu =
     -- reset things, display is off
     (ppu & ppuElapsedCycles .~ 0
       & ppuLCDY .~ 0
-      & ppuLCDX .~ 0
       & ppuMode .~ VBlank,
       NoPPUInterrupt)
   where
@@ -333,33 +323,68 @@ updateMode ppu
 
 drawScanline :: PPU -> PPU
 drawScanline ppu =
-  ppu & (bool id drawTiles . view ppuBGWindowEnableFlag $ ppu)
-    & (bool id drawSprites . view ppuSpritesEnableFlag $ ppu)
+  ppu
+    & drawBGScanline
+    & (bool id drawSpriteScanline . view ppuSpritesEnableFlag $ ppu)
 
--- TODO: Currently just floats everything with window pixels
-drawTiles :: PPU -> PPU
-drawTiles ppu =
-    ppu & ppuBGQueue %~ flip (<>) lookupTiles
+drawBGScanline :: PPU -> PPU
+drawBGScanline ppu =
+  ppu & ppuScreen . unScreen %~ (\lines -> lines & ix lineToDraw .~ resultingPixels)
   where
-    -- TODO: for each group of 8 in xPosition 0 - 159:
-    -- a) load window pixels
-    --    depending on ppuWindowTileMapArea and offset by current group of 8 get 2 bytes from VRAM
-    --    toBGPixels
-    -- b) load bg pixels
-    --    depending on ppuBGTileMapArea and offset by current group of 8 get 2 bytes from VRAM
-    --    toBGPixelColours
-    -- c) check window y
-    --    if not on scanline, use bg pixels
-    --    if on scanline, check window x and if within tile, merge window and bg accordingly (window always above bg)
-    lookupTiles = fold [toWindowPixels ppu (vramByte $ x * 2) (vramByte $ x * 2 + 1) | x <- [0..20]]
-    vramByte x = fromMaybe 0x00 $ M.lookup (startAddress + (x * 2)) (ppu ^. ppuVRAM) -- TODO: Maybe we need an actual lookup function
-    startAddress =
-      case ppu ^. ppuWindowTileMapArea of
-        WTMA9800To9BFF -> 0x9800
-        WTMA9C00To9FFF -> 0x9C00
-    -- Tile Numbers in region 8000 are unsigned, while in 8800 they are signed, hence they need to be offset by 128
-    tileDataAddress TDA8000To8FFF tileNr = 0x8000 + (tileNr * 16)
-    tileDataAddress TDA8800To97FF tileNr = 0x8800 + ((tileNr + 128) * 16)
+    resultingPixels =
+      -- scanline within window?
+      if ppu ^. ppuWindowY <= ppu ^. ppuLCDY && ppu ^. ppuBGWindowEnableFlag
+        then mergeWindowBGPixels ppu windowPixels bgPixels
+        else bgPixels
+    lineToDraw = ppu ^. ppuLCDY . to fromIntegral
+
+    windowPixels = _pixelColour <$> fold [toWindowPixels ppu (windowVramByte $ x * 2) (windowVramByte $ x * 2 + 1) | x <- [0..19]]
+    windowVramByte x =
+      fromMaybe 0x00
+      . M.lookup (tileDataAddress (ppu ^. ppuBGWindowTileDataArea) . fromMaybe 0x00 $ M.lookup (windowStartAddress + x) (ppu ^. ppuVRAM)) $ (ppu ^. ppuVRAM) -- TODO: Maybe we need an actual lookup function
+    windowStartAddress =
+      -- start + offset for scanline
+      -- window always starts top left
+      areaStart + fromIntegral ((lineToDraw `div` 8) * 32)
+      where
+        areaStart =
+          case ppu ^. ppuWindowTileMapArea of
+            WTMA9800To9BFF -> 0x9800
+            WTMA9C00To9FFF -> 0x9C00
+
+    bgPixels = _pixelColour <$> fold [toBGPixels ppu (bgVramByte $ x * 2) (bgVramByte $ x * 2 + 1) | x <- [0..19]]
+    bgVramByte x =
+      fromMaybe 0x00
+        . M.lookup (tileDataAddress (ppu ^. ppuBGWindowTileDataArea) . fromMaybe 0x00 $ M.lookup (bgStartAddress + x) (ppu ^. ppuVRAM)) $ (ppu ^. ppuVRAM)
+    bgStartAddress =
+      -- start + offset for scanline + scroll x + scroll y
+      areaStart
+        + fromIntegral ((lineToDraw `div` 8) * 32)
+        + fromIntegral (ppu ^. ppuScrollX)
+        + fromIntegral ((fromIntegral (ppu ^. ppuScrollY) `div` 8) * 32)
+      where
+        areaStart =
+          case ppu ^. ppuBGTileMapArea of
+            BTMA9800To9BFF -> 0x9800
+            BTMA9C00To9FFF -> 0x9C00
+
+    tileDataAddress :: BGWindowTileDataArea -> Word8 -> Address
+    tileDataAddress TDA8000To8FFF tileNr = 0x8000 + fromIntegral (fromIntegral tileNr * (16 :: Integer) + (fromIntegral (ppu ^. ppuLCDY `mod` 8) * 2))
+    tileDataAddress TDA8800To97FF tileNr = 0x8800 + fromIntegral (fromIntegral (tileNr + 128) * (16 :: Integer) + (fromIntegral (ppu ^. ppuLCDY `mod` 8) * 2))
+
+mergeWindowBGPixels :: PPU -> [Colour] -> [Colour] -> [Colour]
+mergeWindowBGPixels ppu win bg =
+    bgpart <> winpart
+  where
+    bgpart = take (fromIntegral windowX) bg
+    winpart = drop (fromIntegral windowX) win
+    windowX = ppu ^. ppuWindowX - 7
+
+drawBGScanlineTest :: PPU -> PPU
+drawBGScanlineTest ppu =
+  ppu & ppuScreen . unScreen %~ (\lines -> lines & ix lineToDraw .~ if even lineToDraw then whiteLine else darkGrayLine)
+  where
+    lineToDraw = ppu ^. ppuLCDY . to fromIntegral
 
 toBGPixels :: PPU -> Word8 -> Word8 -> [Pixel]
 toBGPixels ppu lo hi =
@@ -400,24 +425,54 @@ toWindowPixels ppu lo hi =
     lookupColourIndex (True, True) = ppu ^. ppuBGColourIndex3
 
 
-drawSprites :: PPU -> PPU
-drawSprites = undefined
+-- TODO: Implement
+drawSpriteScanline :: PPU -> PPU
+drawSpriteScanline = id
 
-pixelFetcher :: PPU -> PPU
-pixelFetcher ppu = undefined ppu
-  where
-    getTile ppu
-      | ppu ^. ppuBGTileMapArea == BTMA9C00To9FFF && not (withinWindow ppu) = 0x9C00
-      | ppu ^. ppuWindowTileMapArea == WTMA9C00To9FFF && withinWindow ppu = 0x9C00
-      | otherwise = 0x9800
-
-toByteString :: PPU -> ByteString
-toByteString ppu = BS.pack . concatMap toRgba $ screen
-  where
-    screen = take (160 * 144) . toListOf (ppuBGQueue . folded . pixelColour) $ ppu -- TOOD: Implement. This also 'MUST' be cleared after taking a screen
+-- pixelFetcher :: PPU -> PPU
+-- pixelFetcher ppu = undefined ppu
+--   where
+--     getTile ppu
+--       | ppu ^. ppuBGTileMapArea == BTMA9C00To9FFF && not (withinWindow ppu) = 0x9C00
+--       | ppu ^. ppuWindowTileMapArea == WTMA9C00To9FFF && withinWindow ppu = 0x9C00
+--       | otherwise = 0x9800
 
 toRgba :: Colour -> [Word8]
 toRgba White = [155, 188, 15, 255]
 toRgba LightGray = [139, 172, 15, 255]
 toRgba DarkGray = [48, 98, 48, 255]
 toRgba Black = [15, 56, 15, 255]
+
+toScreenByteString :: PPU -> ByteString
+toScreenByteString = BS.pack . concatMap toRgba . concat . view (ppuScreen . unScreen)
+
+toTestScreenPicture :: PPU -> ByteString
+toTestScreenPicture _ppu = BS.pack . concatMap toRgba $ concat (testScreen ^. unScreen)
+
+initialScreen :: Screen
+initialScreen = Screen [whiteLine | x <- [0..143]]
+
+
+-- TODO: Testing stuff below here
+
+testScreen :: Screen
+testScreen = Screen [decideline x | x <- [0..143]]
+  where
+    decideline x
+      | even x = whiteLine
+      | otherwise = darkGrayLine
+
+whiteLine :: Line
+whiteLine = [White | x <- [0..159]]
+
+darkGrayLine :: Line
+darkGrayLine = [DarkGray | x <- [0..159]]
+
+testData :: [Colour]
+testData = [toColour i | i <- [1 ..]]
+  where
+    toColour i
+      | i `mod` 3 == 0 && i `mod` 5 == 0 = Black
+      | i `mod` 3 == 0 = LightGray
+      | i `mod` 5 == 0 = DarkGray
+      | otherwise = White

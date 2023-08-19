@@ -4,12 +4,15 @@ import CPU (initCpu, runInstruction)
 import Control.Lens
 import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Interact
-import PPU (toByteString)
+import PPU (toTestScreenPicture, toScreenByteString)
 import Types
 
 runGame :: Cartridge -> IO ()
 runGame c =
-  play window background 60 (initialWorld c) toPicture handleInputs gameStep
+  play window background fps (initialWorld c) toPicture handleInputs gameStep
+
+fps :: Int
+fps = 1
 
 runCycles :: Cycles -> CPU -> CPU
 runCycles target cpu =
@@ -36,7 +39,7 @@ toPicture cpu =
       windowWidth
       windowHeight
       (BitmapFormat TopToBottom PxRGBA)
-      (cpu ^. cpuMCU . mcuPPU . to toByteString)
+      (cpu ^. cpuMCU . mcuPPU . to toScreenByteString)
       False
 
 handleInputs :: Event -> CPU -> CPU
@@ -49,10 +52,11 @@ gameStep secs cpu =
     cycles = ceiling (secs * cyclesPerSecond)
 
 windowHeight :: Int
-windowHeight = 160
+windowHeight = 144
 
 windowWidth :: Int
-windowWidth = 144
+windowWidth = 160
 
 cyclesPerSecond :: Float
-cyclesPerSecond = 4194304
+cyclesPerSecond = 200000
+-- cyclesPerSecond = 4194304 -- actual value, probably
