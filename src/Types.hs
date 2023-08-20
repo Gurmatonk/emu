@@ -45,7 +45,20 @@ type Address = Word16
 
 type RAM = Map Address Word8
 
-type Joypad = Word8
+-- 0xFF00
+data Joypad = Joypad
+  { _joypadButtonSelect :: Bool, -- bit 5
+    _joypadDirectionSelect :: Bool, -- bit 4
+    _joypadUpPressed :: Bool,
+    _joypadDownPressed :: Bool,
+    _joypadRightPressed :: Bool,
+    _joypadLeftPressed :: Bool,
+    _joypadStartPressed :: Bool,
+    _joypadSelectPressed :: Bool,
+    _joypadAPressed :: Bool,
+    _joypadBPressed :: Bool
+  }
+  deriving (Show)
 
 data Cartridge = Cartridge
   { _cartridgeRawData :: [Word8],
@@ -182,3 +195,4 @@ makeLenses ''Pixel
 makeLenses ''Serial
 makeLenses ''APU
 makeLenses ''Screen
+makeLenses ''Joypad

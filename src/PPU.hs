@@ -433,18 +433,9 @@ toWindowPixels ppu lo hi =
     lookupColourIndex (True, False) = ppuBGColorIndex2 ppu
     lookupColourIndex (True, True) = ppuBGColorIndex3 ppu
 
-
 -- TODO: Implement
 drawSpriteScanline :: PPU -> PPU
 drawSpriteScanline = id
-
--- pixelFetcher :: PPU -> PPU
--- pixelFetcher ppu = undefined ppu
---   where
---     getTile ppu
---       | ppu ^. ppuBGTileMapArea == BTMA9C00To9FFF && not (withinWindow ppu) = 0x9C00
---       | ppu ^. ppuWindowTileMapArea == WTMA9C00To9FFF && withinWindow ppu = 0x9C00
---       | otherwise = 0x9800
 
 toRgba :: Colour -> [Word8]
 toRgba White = [155, 188, 15, 255]

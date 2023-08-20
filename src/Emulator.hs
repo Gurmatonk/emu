@@ -6,13 +6,14 @@ import Graphics.Gloss
 import Graphics.Gloss.Interface.IO.Interact
 import PPU (toTestScreenPicture, toScreenByteString)
 import Types
+import Joypad (pressButton, releaseButton)
 
 runGame :: Cartridge -> IO ()
 runGame c =
   play window background fps (initialWorld c) toPicture handleInputs gameStep
 
 fps :: Int
-fps = 1
+fps = 60
 
 runCycles :: Cycles -> CPU -> CPU
 runCycles target cpu =
@@ -43,7 +44,9 @@ toPicture cpu =
       False
 
 handleInputs :: Event -> CPU -> CPU
-handleInputs _e = id -- TODO: Implement
+handleInputs (EventKey k Down _ _) = pressButton k
+handleInputs (EventKey k Up _ _) = releaseButton k
+handleInputs _ = id
 
 gameStep :: Float -> CPU -> CPU
 gameStep secs cpu =
@@ -58,5 +61,5 @@ windowWidth :: Int
 windowWidth = 160
 
 cyclesPerSecond :: Float
-cyclesPerSecond = 200000
--- cyclesPerSecond = 4194304 -- actual value, probably
+-- cyclesPerSecond = 200000
+cyclesPerSecond = 4194304 -- actual value, probably

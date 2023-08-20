@@ -21,6 +21,7 @@ import Serial (initSerial, serialLookup, serialWrite)
 import Types
 import Data.Bool (bool)
 import Numeric (showHex)
+import Joypad (joypadLookup, joypadWrite, initJoypad)
 
 initMcu :: MCU
 initMcu =
@@ -32,7 +33,7 @@ initMcu =
       _mcuClock = initClock,
       _mcuSerial = initSerial,
       _mcuAPU = initAPU,
-      _mcuJoypad = 0xCF,
+      _mcuJoypad = initJoypad,
       _mcuBootRom = 0xFF, -- FF50
       _mcuInterruptFlag = 0xE1, -- FF0F
       _mcuInterruptEnable = 0x00 -- FFFF
@@ -127,7 +128,7 @@ addressLookup a
   | inMirrorRam a = view (mcuRAM . to (ramLookup (a - 2000)))
   | inOAM a = view (mcuPPU . to (oamLookup a))
   | inProhibited a = const 0xFF -- For now, actually shows super-weird behavior according to pandocs, see map
-  | inJoypad a = view mcuJoypad
+  | inJoypad a = view (mcuJoypad . to joypadLookup)
   | inSerialTransfer a = view (mcuSerial . to (serialLookup a))
   | inClock a = view (mcuClock . to (clockLookup a))
   | inAPU a = view (mcuAPU . to (apuLookup a))
@@ -149,7 +150,7 @@ addressWrite a w
   | inMirrorRam a = mcuRAM %~ ramWrite (a - 2000) w
   | inOAM a = bool id (transferDMA w) (dmaTransfer a) . (mcuPPU %~ oamWrite a w)
   | inProhibited a = id -- probably?
-  | inJoypad a = mcuJoypad .~ w -- TODO: Bits 3-0 should be read-only
+  | inJoypad a = mcuJoypad %~ joypadWrite w
   | inSerialTransfer a = mcuSerial %~ serialWrite a w
   | inClock a = mcuClock %~ clockWrite a w
   | inAPU a = mcuAPU %~ apuWrite a w

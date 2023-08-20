@@ -31,6 +31,7 @@ library
       Clock
       CPU
       Emulator
+      Joypad
       Lenses
       MCU
       PPU
