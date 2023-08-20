@@ -291,9 +291,10 @@ execCycles :: Cycles -> PPU -> (PPU, PPUInterrupts)
 execCycles c ppu =
   if newCycles >= 456
   then
-    (ppu & ppuElapsedCycles .~ newCycles `mod` 456
-      & ppuLCDY .~ newScanline `mod` 154
-      & if newScanline < 144 then drawScanline else id,
+    (ppu
+      & (if ppu ^. ppuLCDY < 144 then drawScanline else id)
+      & ppuElapsedCycles .~ newCycles `mod` 456
+      & ppuLCDY .~ newScanline `mod` 154,
       bool NoPPUInterrupt VBlankInterrupt (newScanline == 144)
     )
   else
