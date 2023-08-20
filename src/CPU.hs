@@ -11,11 +11,11 @@ import Data.Bool (bool)
 import Data.Int (Int8)
 import Data.Tuple (swap)
 import Data.Word (Word16, Word8)
-import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuFlagZ, cpuRegisterAF, cpuRegisterBC, cpuRegisterDE, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup, interruptFlagTimer, interruptFlagVBlank, interruptFlagLCDStat, interruptFlagSerial, interruptFlagJoypad)
+import Lenses (cpuFlagC, cpuFlagH, cpuFlagN, cpuRegisterAF, cpuRegisterBC, cpuRegisterDE, cpuRegisterHL, mcuLookup, mcuWrite, pcLookup, interruptFlagTimer, interruptFlagVBlank, interruptFlagLCDStat, interruptFlagSerial, interruptFlagJoypad, setCpuFlagZ, getCpuFlagZ)
 import qualified MCU
 import PPU (updatePPU)
 import Types
-import Utils (bitwiseValue, mkWord16, splitWord16)
+import Utils (mkWord16, splitWord16, testBitF, bitTo)
 import Numeric.Lens (subtracting, adding)
 
 initCpu :: CPU
@@ -396,7 +396,7 @@ stop cpu =
 daa :: CPU -> CPU
 daa cpu =
   cpu & correctA
-    & (\cpu' -> cpu' & cpuFlagZ .~ (cpu' ^. cpuRegisterA == 0))
+    & (\cpu' -> cpu' & setCpuFlagZ (cpu' ^. cpuRegisterA == 0))
     & cpuFlagH .~ False
   where
     correctA cpu' =
@@ -487,60 +487,60 @@ dec16 reg = reg -~ 1
 --       CB rotations CAN set the Z flag, while these here by definition just reset it.
 rlA :: CPU -> CPU
 rlA cpu =
-  cpu & cpuRegisterA . bitwiseValue (bit 7) .~ new7th -- swap 7th bit with carry so we can ignore carry when rotating
+  cpu & cpuRegisterA %~ bitTo 7 new7th -- swap 7th bit with carry so we can ignore carry when rotating
     & cpuFlagC .~ old7th
     & cpuRegisterA %~ (`rotateL` 1)
-    & cpuFlagZ .~ False
+    & setCpuFlagZ False
     & cpuFlagN .~ False
     & cpuFlagH .~ False
   where
-    old7th = cpu ^. cpuRegisterA . bitwiseValue (bit 7)
+    old7th = testBitF 7 (cpu ^. cpuRegisterA)
     new7th = cpu ^. cpuFlagC
 
 rrA :: CPU -> CPU
 rrA cpu =
-  cpu & cpuRegisterA . bitwiseValue (bit 0) .~ new0th -- swap 0th bit with carry so we can ignore carry when rotating
+  cpu & cpuRegisterA %~ bitTo 0 new0th -- swap 0th bit with carry so we can ignore carry when rotating
     & cpuFlagC .~ old0th
     & cpuRegisterA %~ (`rotateR` 1)
-    & cpuFlagZ .~ False
+    & setCpuFlagZ False
     & cpuFlagN .~ False
     & cpuFlagH .~ False
   where
-    old0th = cpu ^. cpuRegisterA . bitwiseValue (bit 0)
+    old0th = testBitF 0 (cpu ^. cpuRegisterA)
     new0th = cpu ^. cpuFlagC
 
 rlcA :: CPU -> CPU
 rlcA cpu =
   cpu & cpuFlagC .~ old7th
     & cpuRegisterA %~ (`rotateL` 1)
-    & cpuFlagZ .~ False
+    & setCpuFlagZ False
     & cpuFlagN .~ False
     & cpuFlagH .~ False
   where
-    old7th = cpu ^. cpuRegisterA . bitwiseValue (bit 7)
+    old7th = testBitF 7 (cpu ^. cpuRegisterA)
 
 rrcA :: CPU -> CPU
 rrcA cpu =
   cpu & cpuFlagC .~ old0th
     & cpuRegisterA %~ (`rotateR` 1)
-    & cpuFlagZ .~ False
+    & setCpuFlagZ False
     & cpuFlagN .~ False
     & cpuFlagH .~ False
   where
-    old0th = cpu ^. cpuRegisterA . bitwiseValue (bit 0)
+    old0th = testBitF 0 (cpu ^. cpuRegisterA)
 
 inc :: Lens' CPU Word8 -> CPU -> CPU
 inc reg cpu =
   cpu & reg +~ 1
     & cpuFlagH .~ (0x0F .&. cpu ^. reg + 1 > 0x0F)
-    & cpuFlagZ .~ (cpu ^. reg + 1 == 0x00)
+    & setCpuFlagZ (cpu ^. reg + 1 == 0x00)
     & cpuFlagN .~ False
 
 incHL_ :: CPU -> CPU
 incHL_ cpu =
   cpu & mcuWrite cpuRegisterHL val
     & cpuFlagH .~ (0x0F .&. (cpu ^. val) > 0x0F)
-    & cpuFlagZ .~ (cpu ^. val == 0x00)
+    & setCpuFlagZ (cpu ^. val == 0x00)
     & cpuFlagN .~ False
   where
     val :: Getter CPU Word8
@@ -550,14 +550,14 @@ dec :: Lens' CPU Word8 -> CPU -> CPU
 dec reg cpu =
   cpu & reg -~ 1
     & cpuFlagH .~ (0x0F .&. cpu ^. reg == 0x00)
-    & cpuFlagZ .~ (cpu ^. reg - 1 == 0x00)
+    & setCpuFlagZ (cpu ^. reg - 1 == 0x00)
     & cpuFlagN .~ True
 
 decHL_ :: CPU -> CPU
 decHL_ cpu =
   cpu & mcuWrite cpuRegisterHL (val . subtracting 1)
     & cpuFlagH .~ (0x0F .&. (cpu ^. val) == 0x00)
-    & cpuFlagZ .~ ((cpu ^. val . subtracting 1) == 0x00)
+    & setCpuFlagZ ((cpu ^. val . subtracting 1) == 0x00)
     & cpuFlagN .~ True
   where
     val :: Getter CPU Word8
@@ -585,7 +585,7 @@ addSPr8 cpu =
           & cpuFlagC .~ (op1 - op2 > op1)
           & cpuFlagH .~ (0x0FFF .&. op1 - 0x0FFF .&. op2 < 0x0FFF) -- TODO: Is this correct??
   )
-    & cpuFlagZ .~ False
+    & setCpuFlagZ False
     & cpuFlagN .~ False
   where
     (cpu', r8) = fromIntegral <$> pcLookup cpu :: (CPU, Int8)
@@ -604,7 +604,7 @@ ldHLSPplusr8 cpu =
           & cpuFlagC .~ (op1 - op2 > op1)
           & cpuFlagH .~ (0x0FFF .&. op1 - 0x0FFF .&. op2 < 0x0FFF) -- TODO: Is this correct??
   )
-    & cpuFlagZ .~ False
+    & setCpuFlagZ False
     & cpuFlagN .~ False
   where
     (cpu', r8) = fromIntegral <$> pcLookup cpu :: (CPU, Int8)
@@ -614,7 +614,7 @@ ldHLSPplusr8 cpu =
 addA :: Getting Word8 CPU Word8 -> CPU -> CPU
 addA reg cpu =
   cpu & cpuRegisterA .~ op1 + op2
-    & cpuFlagZ .~ (op1 + op2 == 0x00)
+    & setCpuFlagZ (op1 + op2 == 0x00)
     & cpuFlagH .~ (op1 + op2 < op1) -- I suppose H in this context is just C...?
     & cpuFlagC .~ (op1 + op2 < op1)
     & cpuFlagN .~ False
@@ -625,7 +625,7 @@ addA reg cpu =
 addAd8 :: CPU -> CPU
 addAd8 cpu =
   cpu' & cpuRegisterA .~ op1 + op2
-    & cpuFlagZ .~ (op1 + op2 == 0x00)
+    & setCpuFlagZ (op1 + op2 == 0x00)
     & cpuFlagH .~ (op1 + op2 < op1)
     & cpuFlagC .~ (op1 + op2 < op1)
     & cpuFlagN .~ False
@@ -636,7 +636,7 @@ addAd8 cpu =
 adcA :: Getting Word8 CPU Word8 -> CPU -> CPU
 adcA reg cpu =
   cpu & cpuRegisterA .~ op1 + op2 + cy
-    & cpuFlagZ .~ (op1 + op2 + cy == 0x00)
+    & setCpuFlagZ (op1 + op2 + cy == 0x00)
     & cpuFlagH .~ (op1 + op2 < op1 || (op1 + op2 + cy < op1 + op2)) -- I suppose H in this context is just C...?
     & cpuFlagC .~ (op1 + op2 < op1 || (op1 + op2 + cy < op1 + op2)) -- FIXME: There must be sth more elegant :/
     & cpuFlagN .~ False
@@ -653,7 +653,7 @@ adcAd8 cpu = cpu' & adcA (to (const d8))
 sub :: Getting Word8 CPU Word8 -> CPU -> CPU
 sub reg cpu =
   cpu & cpuRegisterA .~ op1 - op2
-    & cpuFlagZ .~ (op1 - op2 == 0x00)
+    & setCpuFlagZ (op1 - op2 == 0x00)
     & cpuFlagH .~ (op1 - op2 > op1) -- I suppose H in this context is just C...?
     & cpuFlagC .~ (op1 - op2 > op1)
     & cpuFlagN .~ True
@@ -669,7 +669,7 @@ subd8 cpu = cpu' & sub (to (const d8))
 sbc :: Getting Word8 CPU Word8 -> CPU -> CPU
 sbc reg cpu =
   cpu & cpuRegisterA .~ op1 - op2 - cy
-    & cpuFlagZ .~ (op1 - op2 - cy == 0x00)
+    & setCpuFlagZ (op1 - op2 - cy == 0x00)
     & cpuFlagH .~ (op1 - op2 > op1 || op1 - op2 - cy > op1 - op2) -- I suppose H in this context is just C...?
     & cpuFlagC .~ (op1 - op2 > op1 || op1 - op2 - cy > op1 - op2)
     & cpuFlagN .~ True
@@ -686,7 +686,7 @@ sbcAd8 cpu = cpu' & sbc (to (const d8))
 aAnd :: Getting Word8 CPU Word8 -> CPU -> CPU
 aAnd reg cpu =
   cpu & cpuRegisterA .~ op1 .&. op2
-    & cpuFlagZ .~ (op1 .&. op2 == 0x00)
+    & setCpuFlagZ (op1 .&. op2 == 0x00)
     & cpuFlagN .~ False
     & cpuFlagH .~ True
     & cpuFlagC .~ False
@@ -702,7 +702,7 @@ andd8 cpu = cpu' & aAnd (to (const d8))
 aXor :: Getting Word8 CPU Word8 -> CPU -> CPU
 aXor reg cpu =
   cpu & cpuRegisterA .~ op1 `xor` op2
-    & cpuFlagZ .~ (op1 `xor` op2 == 0x00)
+    & setCpuFlagZ (op1 `xor` op2 == 0x00)
     & cpuFlagN .~ False
     & cpuFlagH .~ False
     & cpuFlagC .~ False
@@ -718,7 +718,7 @@ xord8 cpu = cpu' & aXor (to (const d8))
 aor :: Getting Word8 CPU Word8 -> CPU -> CPU
 aor reg cpu =
   cpu & cpuRegisterA .~ op1 .|. op2
-    & cpuFlagZ .~ (op1 .|. op2 == 0x00)
+    & setCpuFlagZ (op1 .|. op2 == 0x00)
     & cpuFlagN .~ False
     & cpuFlagH .~ False
     & cpuFlagC .~ False
@@ -734,7 +734,7 @@ ord8 cpu = cpu' & aor (to (const d8))
 -- NOTE: This is just sub without writing into A. Consider separation of flag effects, operations, and actual writing of registers?
 acp :: Getting Word8 CPU Word8 -> CPU -> CPU
 acp reg cpu =
-  cpu & cpuFlagZ .~ (op1 == op2)
+  cpu & setCpuFlagZ (op1 == op2)
     & cpuFlagN .~ True
     & cpuFlagH .~ (op1 - op2 > op1)
     & cpuFlagC .~ (op1 - op2 > op1)
@@ -760,13 +760,13 @@ jrr8 cpu =
 -- TODO: Consider whether implementation in terms of jrr8 is a good idea or not...
 jrZr8 :: CPU -> CPU
 jrZr8 cpu =
-  if cpu ^. cpuFlagZ
+  if getCpuFlagZ cpu
     then jrr8 cpu
     else fst . pcLookup $ cpu -- read it and throw it away...
 
 jrNZr8 :: CPU -> CPU
 jrNZr8 cpu =
-  if not (cpu ^. cpuFlagZ)
+  if not (getCpuFlagZ cpu)
     then jrr8 cpu
     else fst . pcLookup $ cpu
 
@@ -794,13 +794,13 @@ jpa16 cpu = cpu'' & cpuPC .~ mkWord16 msb lsb
 
 jpZa16 :: CPU -> CPU
 jpZa16 cpu =
-  if cpu ^. cpuFlagZ
+  if getCpuFlagZ cpu
     then jpa16 cpu
     else fst . pcLookup . fst . pcLookup $ cpu
 
 jpNZa16 :: CPU -> CPU
 jpNZa16 cpu =
-  if not (cpu ^. cpuFlagZ)
+  if not (getCpuFlagZ cpu)
     then jpa16 cpu
     else fst . pcLookup . fst . pcLookup $ cpu
 
@@ -844,13 +844,13 @@ ret cpu =
 
 retZ :: CPU -> CPU
 retZ cpu =
-  if cpu ^. cpuFlagZ
+  if getCpuFlagZ cpu
     then ret cpu
     else cpu
 
 retNZ :: CPU -> CPU
 retNZ cpu =
-  if not (cpu ^. cpuFlagZ)
+  if not (getCpuFlagZ cpu)
     then ret cpu
     else cpu
 
@@ -892,13 +892,13 @@ calla16 cpu =
 
 callZa16 :: CPU -> CPU
 callZa16 cpu =
-  if cpu ^. cpuFlagZ
+  if getCpuFlagZ cpu
     then calla16 cpu
     else fst . pcLookup . fst . pcLookup $ cpu
 
 callNZa16 :: CPU -> CPU
 callNZa16 cpu =
-  if not (cpu ^. cpuFlagZ)
+  if not (getCpuFlagZ cpu)
     then calla16 cpu
     else fst . pcLookup . fst . pcLookup $ cpu
 

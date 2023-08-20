@@ -1,4 +1,6 @@
 {-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE StrictData #-}
+-- TODO: Check sometime if we can omit this in favor of actually finding space leak source
 
 module Types where
 
@@ -8,34 +10,34 @@ import Data.Sequence (Seq)
 import Data.Word (Word16, Word8)
 
 data CPU = CPU
-  { _cpuRegisterA :: Word8,
-    _cpuRegisterF :: Word8,
-    _cpuRegisterB :: Word8,
-    _cpuRegisterC :: Word8,
-    _cpuRegisterD :: Word8,
-    _cpuRegisterE :: Word8,
-    _cpuRegisterH :: Word8,
-    _cpuRegisterL :: Word8,
-    _cpuSP :: Word16,
-    _cpuPC :: Word16,
-    _cpuMCU :: MCU,
-    _cpuIME :: Bool,
-    _cpuHalted :: Bool
+  { _cpuRegisterA :: !Word8,
+    _cpuRegisterF :: !Word8,
+    _cpuRegisterB :: !Word8,
+    _cpuRegisterC :: !Word8,
+    _cpuRegisterD :: !Word8,
+    _cpuRegisterE :: !Word8,
+    _cpuRegisterH :: !Word8,
+    _cpuRegisterL :: !Word8,
+    _cpuSP :: !Word16,
+    _cpuPC :: !Word16,
+    _cpuMCU :: !MCU,
+    _cpuIME :: !Bool,
+    _cpuHalted :: !Bool
   }
   deriving (Show)
 
 data MCU = MCU
-  { _mcuRAM :: RAM,
-    _mcuHIRAM :: RAM,
-    _mcuCartridge :: Cartridge,
-    _mcuPPU :: PPU,
-    _mcuClock :: Clock,
-    _mcuSerial :: Serial,
-    _mcuAPU :: APU,
-    _mcuJoypad :: Joypad,
-    _mcuBootRom :: Word8, -- FF50
-    _mcuInterruptFlag :: Word8, -- FF0F
-    _mcuInterruptEnable :: Word8 -- FFFF
+  { _mcuRAM :: !RAM,
+    _mcuHIRAM :: !RAM,
+    _mcuCartridge :: !Cartridge,
+    _mcuPPU :: !PPU,
+    _mcuClock :: !Clock,
+    _mcuSerial :: !Serial,
+    _mcuAPU :: !APU,
+    _mcuJoypad :: !Joypad,
+    _mcuBootRom :: !Word8, -- FF50
+    _mcuInterruptFlag :: !Word8, -- FF0F
+    _mcuInterruptEnable :: !Word8 -- FFFF
   }
   deriving (Show)
 
@@ -67,7 +69,7 @@ data PPU = PPU
     _ppuWindowX :: Position, -- FF4B (R/W) Left coordinate of Window - 7 (WX == 7 is left-aligned with Screen)
     _ppuVRAM :: VRAM, -- 8000-9FFF
     _ppuOAM :: OAM, -- FE00-FE9F
-    _ppuScreen :: Screen,
+    _ppuScreen :: !Screen,
     _ppuElapsedCycles :: Cycles -- PPU takes 456 cycles to do a scanline, hence we need to keep track
   }
   deriving (Show)
@@ -78,8 +80,11 @@ newtype Screen = Screen { _unScreen :: [Line] }
 instance Show Screen where
   show = const "SomeScreen"
 
--- 160 Pixels
-type Line = [Colour]
+-- r,g,b,a per color
+type RGBAColor = [Word8]
+
+-- 160 Pixel colors
+type Line = [RGBAColor]
 
 data TimaInterrupt = TimaInterrupt | NoTimaInterrupt
   deriving (Eq, Show)
@@ -114,7 +119,7 @@ data Colour = White | LightGray | DarkGray | Black
 
 data Pixel = Pixel
   { _pixelSource :: PixelSource,
-    _pixelColour :: Colour
+    _pixelColour :: RGBAColor
   }
   deriving (Show)
 

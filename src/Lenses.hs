@@ -7,19 +7,22 @@ import Data.Bits (bit)
 import Data.Word (Word16, Word8)
 import qualified MCU
 import Types
-import Utils (bitwiseValue, mkWord16, splitWord16)
+import Utils (bitwiseValue', mkWord16, splitWord16, bitTo, testBitF)
 
-cpuFlagZ :: Lens' CPU Bool
-cpuFlagZ = cpuRegisterF . bitwiseValue (bit 7)
+setCpuFlagZ :: Bool -> CPU -> CPU
+setCpuFlagZ b cpu = cpu & cpuRegisterF %~ bitTo 7 b
+
+getCpuFlagZ :: CPU -> Bool
+getCpuFlagZ = testBitF 7 . view cpuRegisterF
 
 cpuFlagN :: Lens' CPU Bool
-cpuFlagN = cpuRegisterF . bitwiseValue (bit 6)
+cpuFlagN = cpuRegisterF . bitwiseValue' 6
 
 cpuFlagH :: Lens' CPU Bool
-cpuFlagH = cpuRegisterF . bitwiseValue (bit 5)
+cpuFlagH = cpuRegisterF . bitwiseValue' 5
 
 cpuFlagC :: Lens' CPU Bool
-cpuFlagC = cpuRegisterF . bitwiseValue (bit 4)
+cpuFlagC = cpuRegisterF . bitwiseValue' 4
 
 combinedRegister :: Lens' CPU Word8 -> Lens' CPU Word8 -> Lens' CPU Word16
 combinedRegister hi lo = lens getter setter
@@ -55,16 +58,16 @@ mcuWrite :: Getter CPU Word16 -> Getter CPU Word8 -> CPU -> CPU
 mcuWrite a v cpu = cpu & cpuMCU .~ MCU.addressWrite (cpu ^. a) (cpu ^. v) (cpu ^. cpuMCU)
 
 interruptFlagVBlank :: Lens' MCU Bool
-interruptFlagVBlank = mcuInterruptFlag . bitwiseValue (bit 0)
+interruptFlagVBlank = mcuInterruptFlag . bitwiseValue' 0
 
 interruptFlagLCDStat :: Lens' MCU Bool
-interruptFlagLCDStat = mcuInterruptFlag . bitwiseValue (bit 1)
+interruptFlagLCDStat = mcuInterruptFlag . bitwiseValue' 1
 
 interruptFlagTimer :: Lens' MCU Bool
-interruptFlagTimer = mcuInterruptFlag . bitwiseValue (bit 2)
+interruptFlagTimer = mcuInterruptFlag . bitwiseValue' 2
 
 interruptFlagSerial :: Lens' MCU Bool
-interruptFlagSerial = mcuInterruptFlag . bitwiseValue (bit 3)
+interruptFlagSerial = mcuInterruptFlag . bitwiseValue' 3
 
 interruptFlagJoypad :: Lens' MCU Bool
-interruptFlagJoypad = mcuInterruptFlag . bitwiseValue (bit 4)
+interruptFlagJoypad = mcuInterruptFlag . bitwiseValue' 4

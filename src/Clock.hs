@@ -4,7 +4,7 @@ import Control.Lens
 import Data.Bits (bit)
 import Data.Word (Word8)
 import Types
-import Utils (bitwiseValue, dualBit)
+import Utils (dualBit, testBitF)
 import Data.Bool (bool)
 
 initClock :: Clock
@@ -28,7 +28,7 @@ updateClock c clock =
   )
   where
     updateTimer clock' =
-      if clock' ^. clockTimerEnabled
+      if clockTimerEnabled clock'
         then
           clock' & clockElapsedCyclesMod .~ newCyclesMod
             & clockTimer .~ if timaOverflow then clock ^. clockTimerModulo else newTima
@@ -40,8 +40,8 @@ updateClock c clock =
     newTima = (clock ^. clockTimer) + fromIntegral incTima
     timaOverflow = incTima > 255 || (newTima < (clock ^. clockTimer))
 
-clockTimerEnabled :: Lens' Clock Bool
-clockTimerEnabled = clockTimerControl . bitwiseValue (bit 2)
+clockTimerEnabled :: Clock -> Bool
+clockTimerEnabled = testBitF 2 . view clockTimerControl
 
 clockFrequency :: Iso' (Bool, Bool) ClockFrequency
 clockFrequency = iso from to

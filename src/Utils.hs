@@ -3,7 +3,7 @@
 module Utils where
 
 import Control.Lens
-import Data.Bits (bit, complement, shiftL, shiftR, (.&.), (.|.))
+import Data.Bits (bit, complement, shiftL, shiftR, (.&.), (.|.), Bits (..))
 import Data.Bool (bool)
 import Data.Word (Word16, Word8)
 
@@ -14,18 +14,38 @@ boolIso t f = iso from to
     from False = f
     to t = True
 
--- flipping single bits like it's 1989 :)
-bitwiseValue :: Word8 -> Lens' Word8 Bool
-bitwiseValue mask = lens getter setter
+testBitF :: (Bits a) => Int -> a -> Bool
+testBitF = flip testBit
+
+setBitF :: (Bits a) => Int -> a -> a
+setBitF = flip setBit
+
+clearBitF :: (Bits a) => Int -> a -> a
+clearBitF = flip clearBit
+
+bitwiseValue' :: Int -> Lens' Word8 Bool
+bitwiseValue' b = lens getter setter
   where
-    getter w = (mask .&. w) > 0
-    setter w = bool (w .&. complement mask) (w .|. mask)
+    getter = flip testBit b
+    setter w = bool (clearBit w b) (setBit w b)
+
+-- flipping single bits like it's 1989 :)
+-- bitwiseValue :: Word8 -> Lens' Word8 Bool
+-- bitwiseValue mask = lens getter setter
+--   where
+--     getter w = (mask .&. w) /= 0
+--     setter w = bool (w .&. complement mask) (w .|. mask)
+
+bitTo :: Int -> Bool -> Word8 -> Word8
+bitTo b v w = bool (clearBitF b w) (setBitF b w) v
 
 dualBit :: Int -> Int -> Lens' Word8 (Bool, Bool)
 dualBit upper lower = lens getter setter
   where
-    getter w = (w ^. bitwiseValue (bit upper), w ^. bitwiseValue (bit lower))
-    setter w (u, l) = w & bitwiseValue (bit upper) .~ u & bitwiseValue (bit lower) .~ l
+    getter w = (testBit w upper, testBit w lower)
+    -- getter w = (w ^. bitwiseValue (bit upper), w ^. bitwiseValue (bit lower))
+    setter w (u, l) = bitTo upper u . bitTo lower l $ w
+    -- setter w (u, l) = w & bitwiseValue' upper .~ u & bitwiseValue' lower .~ l
 
 mkWord16 ::
   -- | HI

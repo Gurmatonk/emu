@@ -15,7 +15,7 @@ module PPU (module PPU) where
 -- where
 
 import Control.Lens
-import Data.Bits (bit)
+import Data.Bits (bit, testBit)
 import Data.Bool (bool)
 import Data.ByteString (ByteString)
 import qualified Data.ByteString as BS
@@ -26,7 +26,7 @@ import Data.Maybe (fromMaybe)
 import qualified Data.Sequence as Seq
 import Data.Word (Word16, Word8)
 import Types
-import Utils (bitwiseValue, boolIso, dualBit)
+import Utils (boolIso, dualBit, testBitF, setBitF, clearBitF)
 import Data.Sequence ((><), Seq)
 
 initPpu :: PPU
@@ -111,63 +111,58 @@ lcdWrite a w ppu
   | otherwise   = undefined
 
 -- init: True
-ppuDisplayEnableFlag :: Lens' PPU Bool
-ppuDisplayEnableFlag = ppuLCDC . bitwiseValue (bit 7)
-
-windowTileMapArea :: Iso' Bool WindowTileMapArea
-windowTileMapArea = boolIso WTMA9C00To9FFF WTMA9800To9BFF
+ppuDisplayEnabled :: PPU -> Bool
+ppuDisplayEnabled = testBitF 7 . view ppuLCDC
 
 -- init: 9800 to 9BFF
-ppuWindowTileMapArea :: Lens' PPU WindowTileMapArea
-ppuWindowTileMapArea = ppuLCDC . bitwiseValue (bit 6) . windowTileMapArea
+ppuWindowTileMapArea :: PPU -> WindowTileMapArea
+ppuWindowTileMapArea = windowTileMapArea . testBitF 5 . view ppuLCDC
+  where
+    windowTileMapArea = bool WTMA9800To9BFF WTMA9C00To9FFF
 
--- init: False
-ppuWindowEnableFlag :: Lens' PPU Bool
-ppuWindowEnableFlag = ppuLCDC . bitwiseValue (bit 5)
-
-bGWindowTileDataArea :: Iso' Bool BGWindowTileDataArea
-bGWindowTileDataArea = boolIso TDA8000To8FFF TDA8800To97FF
+ppuWindowEnabled :: PPU -> Bool
+ppuWindowEnabled ppu = testBitF 5 (ppu ^. ppuLCDC) && testBitF 0 (ppu ^. ppuLCDC)
 
 -- init: 8000 to 8FFF
-ppuBGWindowTileDataArea :: Lens' PPU BGWindowTileDataArea
-ppuBGWindowTileDataArea = ppuLCDC . bitwiseValue (bit 4) . bGWindowTileDataArea
-
-bGTileMapArea :: Iso' Bool BGTileMapArea
-bGTileMapArea = boolIso BTMA9C00To9FFF BTMA9800To9BFF
+ppuBGWindowTileDataArea :: PPU -> BGWindowTileDataArea
+ppuBGWindowTileDataArea = bGWindowTileDataArea . testBitF 4 . view ppuLCDC
+  where
+    bGWindowTileDataArea = bool TDA8800To97FF TDA8000To8FFF
 
 -- init: 9800 to 9BFF
-ppuBGTileMapArea :: Lens' PPU BGTileMapArea
-ppuBGTileMapArea = ppuLCDC . bitwiseValue (bit 3) . bGTileMapArea
-
-spriteSize :: Iso' Bool SpriteSize
-spriteSize = boolIso Size8x16 Size8x8
+ppuBGTileMapArea :: PPU -> BGTileMapArea
+ppuBGTileMapArea = bGTileMapArea . testBitF 3 . view ppuLCDC
+  where
+    bGTileMapArea = bool BTMA9800To9BFF BTMA9C00To9FFF
 
 -- init: 8x8
-ppuSpriteSize :: Lens' PPU SpriteSize
-ppuSpriteSize = ppuLCDC . bitwiseValue (bit 2) . spriteSize
+ppuSpriteSize :: PPU -> SpriteSize
+ppuSpriteSize = spriteSize . testBitF 3 . view ppuLCDC
+  where
+    spriteSize = bool Size8x8 Size8x16
 
 -- init: False
-ppuSpritesEnableFlag :: Lens' PPU Bool
-ppuSpritesEnableFlag = ppuLCDC . bitwiseValue (bit 1)
+ppuSpritesEnabled :: PPU -> Bool
+ppuSpritesEnabled = testBitF 1 . view ppuLCDC
 
 -- init: True
-ppuBGWindowEnableFlag :: Lens' PPU Bool
-ppuBGWindowEnableFlag = ppuLCDC . bitwiseValue (bit 0)
+ppuBGWindowEnabled :: PPU -> Bool
+ppuBGWindowEnabled = testBitF 0 . view ppuLCDC
 
-ppuLYCInterrupt :: Lens' PPU Bool
-ppuLYCInterrupt = ppuSTAT . bitwiseValue (bit 6)
+ppuLYCInterrupt :: PPU -> Bool
+ppuLYCInterrupt = testBitF 6 . view ppuSTAT
 
-ppuMode2OAMInterrupt :: Lens' PPU Bool
-ppuMode2OAMInterrupt = ppuSTAT . bitwiseValue (bit 5)
+ppuMode2OAMInterrupt :: PPU -> Bool
+ppuMode2OAMInterrupt = testBitF 5  . view ppuSTAT
 
-ppuMode1VBlankInterrupt :: Lens' PPU Bool
-ppuMode1VBlankInterrupt = ppuSTAT . bitwiseValue (bit 4)
+ppuMode1VBlankInterrupt :: PPU -> Bool
+ppuMode1VBlankInterrupt = testBitF 4 . view ppuSTAT
 
-ppuMode0HBlankInterrupt :: Lens' PPU Bool
-ppuMode0HBlankInterrupt = ppuSTAT . bitwiseValue (bit 3)
+ppuMode0HBlankInterrupt :: PPU -> Bool
+ppuMode0HBlankInterrupt = testBitF 3 . view ppuSTAT
 
-ppuLYCLYFlag :: Lens' PPU Bool
-ppuLYCLYFlag = ppuSTAT . bitwiseValue (bit 2)
+ppuLYCLYFlag :: PPU -> Bool
+ppuLYCLYFlag = testBitF 2 . view ppuSTAT
 
 mode :: Iso' (Bool, Bool) Mode
 mode = iso from to
@@ -188,6 +183,25 @@ ppuMode = lens getter setter
     getter ppu = ppu ^. ppuSTAT . dualBit 1 0 . mode
     setter ppu m = ppu & ppuSTAT . dualBit 1 0 .~ m ^. from mode
 
+
+white :: RGBAColor
+white = [155, 188, 15, 255]
+
+lightGray :: RGBAColor
+lightGray = [139, 172, 15, 255]
+
+darkGray :: RGBAColor
+darkGray = [48, 98, 48, 255]
+
+black :: RGBAColor
+black = [15, 56, 15, 255]
+
+rgbaColor :: (Bool, Bool) -> RGBAColor
+rgbaColor (False, False) = white
+rgbaColor (False, True) = lightGray
+rgbaColor (True, False) = darkGray
+rgbaColor (True, True) = black
+
 colour :: Iso' (Bool, Bool) Colour
 colour = iso from to
   where
@@ -200,29 +214,17 @@ colour = iso from to
     to DarkGray = (True, False)
     to Black = (True, True)
 
-ppuBGColourIndex3 :: Lens' PPU Colour
-ppuBGColourIndex3 = lens getter setter
-  where
-    getter ppu = ppu ^. ppuBGPalette . dualBit 7 6 . colour
-    setter ppu c = ppu & ppuBGPalette . dualBit 7 6 .~ c ^. from colour
+ppuBGColorIndex0 :: PPU -> RGBAColor
+ppuBGColorIndex0 = rgbaColor . view (ppuBGPalette . dualBit 1 0)
 
-ppuBGColourIndex2 :: Lens' PPU Colour
-ppuBGColourIndex2 = lens getter setter
-  where
-    getter ppu = ppu ^. ppuBGPalette . dualBit 5 4 . colour
-    setter ppu c = ppu & ppuBGPalette . dualBit 5 4 .~ c ^. from colour
+ppuBGColorIndex1 :: PPU -> RGBAColor
+ppuBGColorIndex1 = rgbaColor . view (ppuBGPalette . dualBit 3 2)
 
-ppuBGColourIndex1 :: Lens' PPU Colour
-ppuBGColourIndex1 = lens getter setter
-  where
-    getter ppu = ppu ^. ppuBGPalette . dualBit 3 2 . colour
-    setter ppu c = ppu & ppuBGPalette . dualBit 3 2 .~ c ^. from colour
+ppuBGColorIndex2 :: PPU -> RGBAColor
+ppuBGColorIndex2 = rgbaColor . view (ppuBGPalette . dualBit 5 4)
 
-ppuBGColourIndex0 :: Lens' PPU Colour
-ppuBGColourIndex0 = lens getter setter
-  where
-    getter ppu = ppu ^. ppuBGPalette . dualBit 1 0 . colour
-    setter ppu c = ppu & ppuBGPalette . dualBit 1 0 .~ c ^. from colour
+ppuBGColorIndex3 :: PPU -> RGBAColor
+ppuBGColorIndex3 = rgbaColor . view (ppuBGPalette . dualBit 7 6)
 
 ppuOBJ0ColourIndex3 :: Lens' PPU Colour
 ppuOBJ0ColourIndex3 = lens getter setter
@@ -262,7 +264,7 @@ ppuOBJ1ColourIndex1 = lens getter setter
 
 updatePPU :: Cycles -> PPU -> (PPU, PPUInterrupts)
 updatePPU c ppu =
-  if ppu ^. ppuDisplayEnableFlag
+  if ppuDisplayEnabled ppu
   then (cyclePPU, foldr (<>) cycleInterrupts [lycInterrupts, modeInterrupts])
   else
     -- reset things, display is off
@@ -303,21 +305,21 @@ execCycles c ppu =
 updateLYC :: PPU -> (PPU, PPUInterrupts)
 updateLYC ppu
   | ppu ^. ppuLCDY == ppu ^. ppuLYCompare = 
-    (ppu & ppuLYCLYFlag .~ True, bool NoPPUInterrupt LCDStatInterrupt (ppu ^. ppuLYCInterrupt))
-  | otherwise = (ppu & ppuLYCLYFlag .~ False, NoPPUInterrupt)
+    (ppu & ppuSTAT %~ setBitF 2, bool NoPPUInterrupt LCDStatInterrupt (ppuLYCInterrupt ppu))
+  | otherwise = (ppu & ppuSTAT %~ clearBitF 2, NoPPUInterrupt)
 
 updateMode :: PPU -> (PPU, PPUInterrupts)
 updateMode ppu
   -- Scanlines 144-153 are always VBlank
   | ppu ^. ppuLCDY >= 144 = 
-    (ppu & ppuMode .~ VBlank, bool NoPPUInterrupt VBlankInterrupt (ppu ^. ppuMode1VBlankInterrupt && (oldMode /= VBlank)))
+    (ppu & ppuMode .~ VBlank, bool NoPPUInterrupt VBlankInterrupt (ppuMode1VBlankInterrupt ppu && (oldMode /= VBlank)))
   | ppu ^. ppuElapsedCycles <= 80 = 
-    (ppu & ppuMode .~ SearchingOAM, bool NoPPUInterrupt LCDStatInterrupt (ppu ^. ppuMode2OAMInterrupt && (oldMode /= SearchingOAM)))
+    (ppu & ppuMode .~ SearchingOAM, bool NoPPUInterrupt LCDStatInterrupt (ppuMode2OAMInterrupt ppu && (oldMode /= SearchingOAM)))
   -- Note: not entirely correct, assumes fixed duration of 172 dots/cycles for SearchingOAM
   -- see https://gbdev.io/pandocs/pixel_fifo.html
   | ppu ^. ppuElapsedCycles <= 252 = (ppu & ppuMode .~ LCDTransfer, NoPPUInterrupt)
   | otherwise = 
-    (ppu & ppuMode .~ HBlank, bool NoPPUInterrupt LCDStatInterrupt (ppu ^. ppuMode0HBlankInterrupt && (oldMode /= HBlank)))
+    (ppu & ppuMode .~ HBlank, bool NoPPUInterrupt LCDStatInterrupt (ppuMode0HBlankInterrupt ppu && (oldMode /= HBlank)))
   where
     oldMode = ppu ^. ppuMode
 
@@ -325,37 +327,43 @@ drawScanline :: PPU -> PPU
 drawScanline ppu =
   ppu
     & drawBGScanline
-    & (bool id drawSpriteScanline . view ppuSpritesEnableFlag $ ppu)
+    & (bool id drawSpriteScanline . ppuSpritesEnabled $ ppu)
 
 drawBGScanline :: PPU -> PPU
 drawBGScanline ppu =
   ppu & ppuScreen . unScreen %~ (\lines -> lines & ix lineToDraw .~ resultingPixels)
   where
     resultingPixels =
-      -- scanline within window?
-      if ppu ^. ppuWindowY <= ppu ^. ppuLCDY && ppu ^. ppuBGWindowEnableFlag
-        then mergeWindowBGPixels ppu windowPixels bgPixels
-        else bgPixels
+      if ppuBGWindowEnabled ppu
+        then
+          -- scanline within enabled window?
+          if ppu ^. ppuWindowY <= ppu ^. ppuLCDY && ppuWindowEnabled ppu
+            then mergeWindowBGPixels ppu windowPixels bgPixels
+            else bgPixels
+        else whiteLine
     lineToDraw = ppu ^. ppuLCDY . to fromIntegral
 
-    windowPixels = _pixelColour <$> fold [toWindowPixels ppu (windowVramByte $ x * 2) (windowVramByte $ x * 2 + 1) | x <- [0..19]]
+    windowPixels = _pixelColour <$> fold [uncurry (toWindowPixels ppu) (windowVramByte x) | x <- [0..19]]
     windowVramByte x =
-      fromMaybe 0x00
-      . M.lookup (tileDataAddress (ppu ^. ppuBGWindowTileDataArea) . fromMaybe 0x00 $ M.lookup (windowStartAddress + x) (ppu ^. ppuVRAM)) $ (ppu ^. ppuVRAM) -- TODO: Maybe we need an actual lookup function
+      (fromMaybe 0x00 . M.lookup tileAddr $ (ppu ^. ppuVRAM), fromMaybe 0x00 . M.lookup (tileAddr + 1) $ (ppu ^. ppuVRAM))
+      where
+        tileAddr = tileDataAddress (ppuBGWindowTileDataArea ppu) . fromMaybe 0x00 $ M.lookup (bgStartAddress + x) (ppu ^. ppuVRAM)
     windowStartAddress =
       -- start + offset for scanline
       -- window always starts top left
       areaStart + fromIntegral ((lineToDraw `div` 8) * 32)
       where
         areaStart =
-          case ppu ^. ppuWindowTileMapArea of
+          case ppuWindowTileMapArea ppu of
             WTMA9800To9BFF -> 0x9800
             WTMA9C00To9FFF -> 0x9C00
 
-    bgPixels = _pixelColour <$> fold [toBGPixels ppu (bgVramByte $ x * 2) (bgVramByte $ x * 2 + 1) | x <- [0..19]]
+    bgPixels = _pixelColour <$> fold [uncurry (toBGPixels ppu) (bgVramByte x) | x <- [0..19]]
+    bgVramByte :: Address -> (Word8, Word8)
     bgVramByte x =
-      fromMaybe 0x00
-        . M.lookup (tileDataAddress (ppu ^. ppuBGWindowTileDataArea) . fromMaybe 0x00 $ M.lookup (bgStartAddress + x) (ppu ^. ppuVRAM)) $ (ppu ^. ppuVRAM)
+      (fromMaybe 0x00 . M.lookup tileAddr $ (ppu ^. ppuVRAM), fromMaybe 0x00 . M.lookup (tileAddr + 1) $ (ppu ^. ppuVRAM))
+      where
+        tileAddr = tileDataAddress (ppuBGWindowTileDataArea ppu) . fromMaybe 0x00 $ M.lookup (bgStartAddress + x) (ppu ^. ppuVRAM)
     bgStartAddress =
       -- start + offset for scanline + scroll x + scroll y
       areaStart
@@ -364,7 +372,7 @@ drawBGScanline ppu =
         + fromIntegral ((fromIntegral (ppu ^. ppuScrollY) `div` 8) * 32)
       where
         areaStart =
-          case ppu ^. ppuBGTileMapArea of
+          case ppuBGTileMapArea ppu of
             BTMA9800To9BFF -> 0x9800
             BTMA9C00To9FFF -> 0x9C00
 
@@ -372,7 +380,7 @@ drawBGScanline ppu =
     tileDataAddress TDA8000To8FFF tileNr = 0x8000 + fromIntegral (fromIntegral tileNr * (16 :: Integer) + (fromIntegral (ppu ^. ppuLCDY `mod` 8) * 2))
     tileDataAddress TDA8800To97FF tileNr = 0x8800 + fromIntegral (fromIntegral (tileNr + 128) * (16 :: Integer) + (fromIntegral (ppu ^. ppuLCDY `mod` 8) * 2))
 
-mergeWindowBGPixels :: PPU -> [Colour] -> [Colour] -> [Colour]
+mergeWindowBGPixels :: PPU -> [RGBAColor] -> [RGBAColor] -> [RGBAColor]
 mergeWindowBGPixels ppu win bg =
     bgpart <> winpart
   where
@@ -390,39 +398,39 @@ toBGPixels :: PPU -> Word8 -> Word8 -> [Pixel]
 toBGPixels ppu lo hi =
   Pixel Background <$>
       [
-        (hi ^. bitwiseValue (bit 7), lo ^. bitwiseValue (bit 7)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 6), lo ^. bitwiseValue (bit 6)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 5), lo ^. bitwiseValue (bit 5)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 4), lo ^. bitwiseValue (bit 4)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 3), lo ^. bitwiseValue (bit 3)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 2), lo ^. bitwiseValue (bit 2)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 1), lo ^. bitwiseValue (bit 1)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 0), lo ^. bitwiseValue (bit 0)) ^. to lookupColourIndex
+        (testBit hi 7, testBit lo 7) ^. to lookupColourIndex,
+        (testBit hi 6, testBit lo 6) ^. to lookupColourIndex,
+        (testBit hi 5, testBit lo 5) ^. to lookupColourIndex,
+        (testBit hi 4, testBit lo 4) ^. to lookupColourIndex,
+        (testBit hi 3, testBit lo 3) ^. to lookupColourIndex,
+        (testBit hi 2, testBit lo 2) ^. to lookupColourIndex,
+        (testBit hi 1, testBit lo 1) ^. to lookupColourIndex,
+        (testBit hi 0, testBit lo 0) ^. to lookupColourIndex
       ]
   where
-    lookupColourIndex (False, False) = ppu ^. ppuBGColourIndex0
-    lookupColourIndex (False, True) = ppu ^. ppuBGColourIndex1
-    lookupColourIndex (True, False) = ppu ^. ppuBGColourIndex2
-    lookupColourIndex (True, True) = ppu ^. ppuBGColourIndex3
+    lookupColourIndex (False, False) = ppuBGColorIndex0 ppu
+    lookupColourIndex (False, True) = ppuBGColorIndex1 ppu
+    lookupColourIndex (True, False) = ppuBGColorIndex2 ppu
+    lookupColourIndex (True, True) = ppuBGColorIndex3 ppu
 
 toWindowPixels :: PPU -> Word8 -> Word8 -> [Pixel]
 toWindowPixels ppu lo hi =
   Pixel Window <$>
       [
-        (hi ^. bitwiseValue (bit 7), lo ^. bitwiseValue (bit 7)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 6), lo ^. bitwiseValue (bit 6)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 5), lo ^. bitwiseValue (bit 5)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 4), lo ^. bitwiseValue (bit 4)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 3), lo ^. bitwiseValue (bit 3)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 2), lo ^. bitwiseValue (bit 2)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 1), lo ^. bitwiseValue (bit 1)) ^. to lookupColourIndex,
-        (hi ^. bitwiseValue (bit 0), lo ^. bitwiseValue (bit 0)) ^. to lookupColourIndex
+        (testBit hi 7, testBit lo 7) ^. to lookupColourIndex,
+        (testBit hi 6, testBit lo 6) ^. to lookupColourIndex,
+        (testBit hi 5, testBit lo 5) ^. to lookupColourIndex,
+        (testBit hi 4, testBit lo 4) ^. to lookupColourIndex,
+        (testBit hi 3, testBit lo 3) ^. to lookupColourIndex,
+        (testBit hi 2, testBit lo 2) ^. to lookupColourIndex,
+        (testBit hi 1, testBit lo 1) ^. to lookupColourIndex,
+        (testBit hi 0, testBit lo 0) ^. to lookupColourIndex
       ]
   where
-    lookupColourIndex (False, False) = ppu ^. ppuBGColourIndex0
-    lookupColourIndex (False, True) = ppu ^. ppuBGColourIndex1
-    lookupColourIndex (True, False) = ppu ^. ppuBGColourIndex2
-    lookupColourIndex (True, True) = ppu ^. ppuBGColourIndex3
+    lookupColourIndex (False, False) = ppuBGColorIndex0 ppu
+    lookupColourIndex (False, True) = ppuBGColorIndex1 ppu
+    lookupColourIndex (True, False) = ppuBGColorIndex2 ppu
+    lookupColourIndex (True, True) = ppuBGColorIndex3 ppu
 
 
 -- TODO: Implement
@@ -444,16 +452,24 @@ toRgba DarkGray = [48, 98, 48, 255]
 toRgba Black = [15, 56, 15, 255]
 
 toScreenByteString :: PPU -> ByteString
-toScreenByteString = BS.pack . concatMap toRgba . concat . view (ppuScreen . unScreen)
+toScreenByteString = BS.pack . concat . concat . view (ppuScreen . unScreen)
 
 toTestScreenPicture :: PPU -> ByteString
-toTestScreenPicture _ppu = BS.pack . concatMap toRgba $ concat (testScreen ^. unScreen)
+toTestScreenPicture _ppu = BS.pack . concat $ testScreenRaw
 
 initialScreen :: Screen
 initialScreen = Screen [whiteLine | x <- [0..143]]
 
 
 -- TODO: Testing stuff below here
+testScreenRaw :: [[Word8]]
+testScreenRaw = [decideLine x | x <- [0..143]]
+  where
+    decideLine x
+      | even x = wl
+      | otherwise = dgl
+    wl = concat [[155,188,15,255] | x <- [0..159]]
+    dgl = concat [[48,98,48,255] | x <- [0..159]]
 
 testScreen :: Screen
 testScreen = Screen [decideline x | x <- [0..143]]
@@ -463,10 +479,10 @@ testScreen = Screen [decideline x | x <- [0..143]]
       | otherwise = darkGrayLine
 
 whiteLine :: Line
-whiteLine = [White | x <- [0..159]]
+whiteLine = [white | x <- [0..159]]
 
 darkGrayLine :: Line
-darkGrayLine = [DarkGray | x <- [0..159]]
+darkGrayLine = [darkGray | x <- [0..159]]
 
 testData :: [Colour]
 testData = [toColour i | i <- [1 ..]]

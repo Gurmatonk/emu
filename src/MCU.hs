@@ -21,7 +21,6 @@ import Serial (initSerial, serialLookup, serialWrite)
 import Types
 import Data.Bool (bool)
 import Numeric (showHex)
-import Utils (bitwiseValue)
 
 initMcu :: MCU
 initMcu =
