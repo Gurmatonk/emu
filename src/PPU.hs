@@ -59,7 +59,7 @@ oamLookup a ppu =
     LCDTransfer -> 0xFF
 
 oamWrite :: Address -> Word8 -> PPU -> PPU
-oamWrite a w ppu = 
+oamWrite a w ppu =
   case ppu ^. ppuMode of
     HBlank -> ppu & ppuOAM . at a ?~ w
     VBlank -> ppu & ppuOAM . at a ?~ w
@@ -69,13 +69,13 @@ oamWrite a w ppu =
 vRamLookup :: Word16 -> PPU -> Word8
 vRamLookup a ppu =
   case ppu ^. ppuMode of
-    LCDTransfer -> error "VRAM read during LCDTransfer" -- 0xFF
+    LCDTransfer -> 0xFF -- error "VRAM read during LCDTransfer"
     _ -> fromMaybe 0xFF . view (ppuVRAM . at a) $ ppu
 
 vRamWrite :: Word16 -> Word8 -> PPU -> PPU
 vRamWrite a w ppu =
   case ppu ^. ppuMode of
-    LCDTransfer -> error "VRAM write during LCDTransfer - most likely sync issue?!" -- ppu
+    LCDTransfer -> ppu -- error "VRAM write during LCDTransfer - most likely sync issue?!"
     _ -> ppu & ppuVRAM . at a ?~ w
 
 lcdLookup :: Word16 -> PPU -> Word8
@@ -116,7 +116,7 @@ ppuDisplayEnabled = testBitF 7 . view ppuLCDC
 
 -- init: 9800 to 9BFF
 ppuWindowTileMapArea :: PPU -> WindowTileMapArea
-ppuWindowTileMapArea = windowTileMapArea . testBitF 5 . view ppuLCDC
+ppuWindowTileMapArea = windowTileMapArea . testBitF 6 . view ppuLCDC
   where
     windowTileMapArea = bool WTMA9800To9BFF WTMA9C00To9FFF
 
@@ -226,41 +226,23 @@ ppuBGColorIndex2 = rgbaColor . view (ppuBGPalette . dualBit 5 4)
 ppuBGColorIndex3 :: PPU -> RGBAColor
 ppuBGColorIndex3 = rgbaColor . view (ppuBGPalette . dualBit 7 6)
 
-ppuOBJ0ColourIndex3 :: Lens' PPU Colour
-ppuOBJ0ColourIndex3 = lens getter setter
-  where
-    getter ppu = ppu ^. ppuOBJPalette0 . dualBit 7 6 . colour
-    setter ppu c = ppu & ppuOBJPalette0 . dualBit 7 6 .~ c ^. from colour
+ppuOBJ0ColourIndex1 :: PPU -> RGBAColor
+ppuOBJ0ColourIndex1 = rgbaColor . view (ppuOBJPalette0 . dualBit 3 2)
 
-ppuOBJ0ColourIndex2 :: Lens' PPU Colour
-ppuOBJ0ColourIndex2 = lens getter setter
-  where
-    getter ppu = ppu ^. ppuOBJPalette0 . dualBit 5 4 . colour
-    setter ppu c = ppu & ppuOBJPalette0 . dualBit 5 4 .~ c ^. from colour
+ppuOBJ0ColourIndex2 :: PPU -> RGBAColor
+ppuOBJ0ColourIndex2 = rgbaColor . view (ppuOBJPalette0 . dualBit 5 4)
 
-ppuOBJ0ColourIndex1 :: Lens' PPU Colour
-ppuOBJ0ColourIndex1 = lens getter setter
-  where
-    getter ppu = ppu ^. ppuOBJPalette0 . dualBit 3 2 . colour
-    setter ppu c = ppu & ppuOBJPalette0 . dualBit 3 2 .~ c ^. from colour
+ppuOBJ0ColourIndex3 :: PPU -> RGBAColor
+ppuOBJ0ColourIndex3 = rgbaColor . view (ppuOBJPalette0 . dualBit 7 6)
 
-ppuOBJ1ColourIndex3 :: Lens' PPU Colour
-ppuOBJ1ColourIndex3 = lens getter setter
-  where
-    getter ppu = ppu ^. ppuOBJPalette1 . dualBit 7 6 . colour
-    setter ppu c = ppu & ppuOBJPalette1 . dualBit 7 6 .~ c ^. from colour
+ppuOBJ1ColourIndex1 :: PPU -> RGBAColor
+ppuOBJ1ColourIndex1 = rgbaColor . view (ppuOBJPalette1 . dualBit 3 2)
 
-ppuOBJ1ColourIndex2 :: Lens' PPU Colour
-ppuOBJ1ColourIndex2 = lens getter setter
-  where
-    getter ppu = ppu ^. ppuOBJPalette1 . dualBit 5 4 . colour
-    setter ppu c = ppu & ppuOBJPalette1 . dualBit 5 4 .~ c ^. from colour
+ppuOBJ1ColourIndex2 :: PPU -> RGBAColor
+ppuOBJ1ColourIndex2 = rgbaColor . view (ppuOBJPalette1 . dualBit 5 4)
 
-ppuOBJ1ColourIndex1 :: Lens' PPU Colour
-ppuOBJ1ColourIndex1 = lens getter setter
-  where
-    getter ppu = ppu ^. ppuOBJPalette1 . dualBit 3 2 . colour
-    setter ppu c = ppu & ppuOBJPalette1 . dualBit 3 2 .~ c ^. from colour
+ppuOBJ1ColourIndex3 :: PPU -> RGBAColor
+ppuOBJ1ColourIndex3 = rgbaColor . view (ppuOBJPalette1 . dualBit 7 6)
 
 updatePPU :: Cycles -> PPU -> (PPU, PPUInterrupts)
 updatePPU c ppu =
@@ -305,61 +287,66 @@ execCycles c ppu =
 
 updateLYC :: PPU -> (PPU, PPUInterrupts)
 updateLYC ppu
-  | ppu ^. ppuLCDY == ppu ^. ppuLYCompare = 
+  | ppu ^. ppuLCDY == ppu ^. ppuLYCompare =
     (ppu & ppuSTAT %~ setBitF 2, bool NoPPUInterrupt LCDStatInterrupt (ppuLYCInterrupt ppu))
   | otherwise = (ppu & ppuSTAT %~ clearBitF 2, NoPPUInterrupt)
 
 updateMode :: PPU -> (PPU, PPUInterrupts)
 updateMode ppu
   -- Scanlines 144-153 are always VBlank
-  | ppu ^. ppuLCDY >= 144 = 
+  | ppu ^. ppuLCDY >= 144 =
     (ppu & ppuMode .~ VBlank, bool NoPPUInterrupt VBlankInterrupt (ppuMode1VBlankInterrupt ppu && (oldMode /= VBlank)))
-  | ppu ^. ppuElapsedCycles <= 80 = 
+  | ppu ^. ppuElapsedCycles <= 80 =
     (ppu & ppuMode .~ SearchingOAM, bool NoPPUInterrupt LCDStatInterrupt (ppuMode2OAMInterrupt ppu && (oldMode /= SearchingOAM)))
   -- Note: not entirely correct, assumes fixed duration of 172 dots/cycles for SearchingOAM
   -- see https://gbdev.io/pandocs/pixel_fifo.html
   | ppu ^. ppuElapsedCycles <= 252 = (ppu & ppuMode .~ LCDTransfer, NoPPUInterrupt)
-  | otherwise = 
+  | otherwise =
     (ppu & ppuMode .~ HBlank, bool NoPPUInterrupt LCDStatInterrupt (ppuMode0HBlankInterrupt ppu && (oldMode /= HBlank)))
   where
     oldMode = ppu ^. ppuMode
 
 drawScanline :: PPU -> PPU
 drawScanline ppu =
-  ppu
-    & drawBGScanline
-    & (bool id drawSpriteScanline . ppuSpritesEnabled $ ppu)
-
-drawBGScanline :: PPU -> PPU
-drawBGScanline ppu =
-  ppu & ppuScreen . unScreen %~ (\lines -> lines & ix lineToDraw .~ resultingPixels)
+  ppu & ppuScreen . unScreen %~ (\lines -> lines & ix lineToDraw .~ (_pixelColor <$> resultingPixels))
   where
-    resultingPixels =
-      if ppuBGWindowEnabled ppu
-        then
-          -- scanline within enabled window?
-          if ppu ^. ppuWindowY <= ppu ^. ppuLCDY && ppuWindowEnabled ppu
-            then mergeWindowBGPixels ppu windowPixels bgPixels
-            else bgPixels
-        else whiteLine
+    lineToDraw = ppu ^. ppuLCDY . to fromIntegral
+    bgWindowPixels = currentBGScanline ppu
+    resultingPixels = bool bgWindowPixels (addSprites ppu bgWindowPixels) . ppuSpritesEnabled $ ppu
+
+currentBGScanline :: PPU -> [Pixel]
+currentBGScanline ppu =
+  if ppuBGWindowEnabled ppu
+    then
+      -- scanline within enabled window?
+      if ppu ^. ppuWindowY <= ppu ^. ppuLCDY && ppuWindowEnabled ppu
+        then mergeWindowBGPixels ppu windowPixels bgPixels
+        else bgPixels
+    else whiteBGLine
+  where
+    lineToDraw :: Integer
     lineToDraw = ppu ^. ppuLCDY . to fromIntegral
 
-    windowPixels = _pixelColour <$> fold [uncurry (toWindowPixels ppu) (windowVramByte x) | x <- [0..19]]
+    windowPixels = fold [uncurry (toWindowPixels ppu) (windowVramByte x) | x <- [0..19]]
     windowVramByte x =
       (fromMaybe 0x00 . M.lookup tileAddr $ (ppu ^. ppuVRAM), fromMaybe 0x00 . M.lookup (tileAddr + 1) $ (ppu ^. ppuVRAM))
       where
-        tileAddr = tileDataAddress (ppuBGWindowTileDataArea ppu) . fromMaybe 0x00 $ M.lookup (bgStartAddress + x) (ppu ^. ppuVRAM)
+        tileAddr = tileDataAddress (ppuBGWindowTileDataArea ppu) . fromMaybe 0x00 $ M.lookup (windowStartAddress + x) (ppu ^. ppuVRAM)
+    windowStartAddress :: Address
     windowStartAddress =
       -- start + offset for scanline
       -- window always starts top left
-      areaStart + fromIntegral ((lineToDraw `div` 8) * 32)
+      areaStart 
+        + fromIntegral (((lineToDraw - fromIntegral (ppu ^. ppuWindowY)) `div` 8) * 32)
+
       where
+        areaStart :: Address
         areaStart =
           case ppuWindowTileMapArea ppu of
             WTMA9800To9BFF -> 0x9800
             WTMA9C00To9FFF -> 0x9C00
 
-    bgPixels = _pixelColour <$> fold [uncurry (toBGPixels ppu) (bgVramByte x) | x <- [0..19]]
+    bgPixels = fold [uncurry (toBGPixels ppu) (bgVramByte x) | x <- [0..19]]
     bgVramByte :: Address -> (Word8, Word8)
     bgVramByte x =
       (fromMaybe 0x00 . M.lookup tileAddr $ (ppu ^. ppuVRAM), fromMaybe 0x00 . M.lookup (tileAddr + 1) $ (ppu ^. ppuVRAM))
@@ -381,19 +368,13 @@ drawBGScanline ppu =
     tileDataAddress TDA8000To8FFF tileNr = 0x8000 + fromIntegral (fromIntegral tileNr * (16 :: Integer) + (fromIntegral (ppu ^. ppuLCDY `mod` 8) * 2))
     tileDataAddress TDA8800To97FF tileNr = 0x8800 + fromIntegral (fromIntegral (tileNr + 128) * (16 :: Integer) + (fromIntegral (ppu ^. ppuLCDY `mod` 8) * 2))
 
-mergeWindowBGPixels :: PPU -> [RGBAColor] -> [RGBAColor] -> [RGBAColor]
+mergeWindowBGPixels :: PPU -> [Pixel] -> [Pixel] -> [Pixel]
 mergeWindowBGPixels ppu win bg =
     bgpart <> winpart
   where
     bgpart = take (fromIntegral windowX) bg
     winpart = drop (fromIntegral windowX) win
     windowX = ppu ^. ppuWindowX - 7
-
-drawBGScanlineTest :: PPU -> PPU
-drawBGScanlineTest ppu =
-  ppu & ppuScreen . unScreen %~ (\lines -> lines & ix lineToDraw .~ if even lineToDraw then whiteLine else darkGrayLine)
-  where
-    lineToDraw = ppu ^. ppuLCDY . to fromIntegral
 
 toBGPixels :: PPU -> Word8 -> Word8 -> [Pixel]
 toBGPixels ppu lo hi =
@@ -433,15 +414,120 @@ toWindowPixels ppu lo hi =
     lookupColourIndex (True, False) = ppuBGColorIndex2 ppu
     lookupColourIndex (True, True) = ppuBGColorIndex3 ppu
 
--- TODO: Implement
-drawSpriteScanline :: PPU -> PPU
-drawSpriteScanline = id
+toObj0Pixels :: PPU -> Word8 -> Word8 -> [Pixel]
+toObj0Pixels ppu lo hi =
+  Pixel OBJPalette0 <$>
+      [
+        (testBit hi 7, testBit lo 7) ^. to lookupColourIndex,
+        (testBit hi 6, testBit lo 6) ^. to lookupColourIndex,
+        (testBit hi 5, testBit lo 5) ^. to lookupColourIndex,
+        (testBit hi 4, testBit lo 4) ^. to lookupColourIndex,
+        (testBit hi 3, testBit lo 3) ^. to lookupColourIndex,
+        (testBit hi 2, testBit lo 2) ^. to lookupColourIndex,
+        (testBit hi 1, testBit lo 1) ^. to lookupColourIndex,
+        (testBit hi 0, testBit lo 0) ^. to lookupColourIndex
+      ]
+  where
+    lookupColourIndex (False, False) = toRgba White
+    lookupColourIndex (False, True) = ppuOBJ0ColourIndex1 ppu
+    lookupColourIndex (True, False) = ppuOBJ0ColourIndex2 ppu
+    lookupColourIndex (True, True) = ppuOBJ0ColourIndex3 ppu
+
+toObj1Pixels :: PPU -> Word8 -> Word8 -> [Pixel]
+toObj1Pixels ppu lo hi =
+  Pixel OBJPalette1 <$>
+      [
+        (testBit hi 7, testBit lo 7) ^. to lookupColourIndex,
+        (testBit hi 6, testBit lo 6) ^. to lookupColourIndex,
+        (testBit hi 5, testBit lo 5) ^. to lookupColourIndex,
+        (testBit hi 4, testBit lo 4) ^. to lookupColourIndex,
+        (testBit hi 3, testBit lo 3) ^. to lookupColourIndex,
+        (testBit hi 2, testBit lo 2) ^. to lookupColourIndex,
+        (testBit hi 1, testBit lo 1) ^. to lookupColourIndex,
+        (testBit hi 0, testBit lo 0) ^. to lookupColourIndex
+      ]
+  where
+    lookupColourIndex (False, False) = toRgba White
+    lookupColourIndex (False, True) = ppuOBJ1ColourIndex1 ppu
+    lookupColourIndex (True, False) = ppuOBJ1ColourIndex2 ppu
+    lookupColourIndex (True, True) = ppuOBJ1ColourIndex3 ppu
+
+
+-- sprite data is contained in 0x8000-0x8FFF -> 40 Tiles
+-- sprite attributes are contained in 0xFE00-0xFE9F -> 40 * 4 bytes
+-- sprite attribute bytes:
+--  byte 0: Sprite Y position - 16 (Y=0 is at -16) Range [0..160]
+--  byte 1: Sprite X position - 8 (X=0 is at -8) Range [0..255]
+--  byte 2: Sprite tile number for lookup in sprite data
+--  byte 3: Sprite attribute bits:
+--    bit 7: 0 = render sprite above bg and window; 1 = hide sprite below bg and window UNLESS bg/window is white
+--    bit 6: Y flip: 1 = sprite is upside down
+--    bit 5: X flip: 1 = sprite is horizontally mirrored
+--    bit 4: Palette address: 0 = 0xFF48; 1 = 0xFF49
+--    bit 3-0: unused in DMG
+-- NO MORE THAN 10 SPRITES ARE ALLOWED ON THE SAME SCANLINE - the ones earlier in OAM win
+addSprites :: PPU -> [Pixel] -> [Pixel]
+addSprites ppu bgline = foldr addSprite bgline drawnSpritesOnLine
+  where
+    addSprite :: SpriteInfo -> [Pixel] -> [Pixel]
+    addSprite si l = prefix <> newSegment <> suffix
+      where
+        -- TODO: Does not handle off-screen values!!!
+        x = si ^. spriteInfoXPos
+        prefix = take (x - 1) l
+        suffix = drop (x + 7) l
+        oldSegment = take 8 . drop (x - 1) $ l
+        newSegment = zipWith mergeSpritePixel oldSegment (toSpritePixelGroup si)
+        mergeSpritePixel bg sp
+          | si ^. spriteInfoHidden = if bg ^. pixelColor == white then sp else bg
+          | sp ^. pixelColor == white = bg
+          | otherwise = sp
+    lineToDraw = ppu ^. ppuLCDY . to fromIntegral
+    drawnSpritesOnLine = take 10 ([toSpriteInfo (0xFE00 + x * 4) | x <- [0..39]] ^.. folded . filtered spriteOnLine)
+    toSpriteInfo startAddr =
+      SpriteInfo
+        { _spriteInfoYPos = fromIntegral (fromMaybe 0xFF . view (ppuOAM . at startAddr) $ ppu) - 16,
+          _spriteInfoXPos = fromIntegral (fromMaybe 0xFF . view (ppuOAM . at (startAddr + 1)) $ ppu) - 8,
+          _spriteInfoTileNr = fromMaybe 0xFF . view (ppuOAM . at (startAddr + 2)) $ ppu,
+          _spriteInfoHidden = testBitF 7 spriteBitAddrs,
+          _spriteInfoYFlip = testBitF 6 spriteBitAddrs,
+          _spriteInfoXFlip = testBitF 5 spriteBitAddrs,
+          _spriteInfoPalette0 = testBitF 4 spriteBitAddrs
+        }
+        where
+          spriteBitAddrs = fromMaybe 0xFF . view (ppuOAM . at (startAddr + 3)) $ ppu
+    spriteOnLine sprite =
+      case ppuSpriteSize ppu of
+        Size8x8 -> lineToDraw `elem` [(sprite ^. spriteInfoYPos)..(sprite ^. spriteInfoYPos + 7)]
+        Size8x16 -> lineToDraw `elem` [(sprite ^. spriteInfoYPos)..(sprite ^. spriteInfoYPos + 15)]
+    toSpritePixelGroup si =
+      if si ^. spriteInfoXFlip
+        then reverse pixelGroup
+        else pixelGroup
+      where
+        pixelGroup =
+          if si ^. spriteInfoPalette0
+            then toObj0Pixels ppu lo hi
+            else toObj1Pixels ppu lo hi
+        (lo, hi) = (fromMaybe 0x00 $ ppu ^. ppuVRAM . at spriteStart, fromMaybe 0x00 $ ppu ^. ppuVRAM . at (spriteStart + 1))
+        spriteStart = 0x8000 + tileNrOffset + fromIntegral (spriteLineNr * 2)
+        tileNrOffset = fromIntegral (fromIntegral (si ^. spriteInfoTileNr) * (16 :: Int))
+        spriteLineNr =
+          if si ^. spriteInfoYFlip
+            then
+              case ppuSpriteSize ppu of
+                Size8x8 -> 8 - (lineToDraw - si ^. spriteInfoYPos)
+                Size8x16 -> 16 - (lineToDraw - si ^. spriteInfoYPos)
+            else lineToDraw - si ^. spriteInfoYPos -- no y flip - just use distance
 
 toRgba :: Colour -> [Word8]
 toRgba White = [155, 188, 15, 255]
 toRgba LightGray = [139, 172, 15, 255]
 toRgba DarkGray = [48, 98, 48, 255]
 toRgba Black = [15, 56, 15, 255]
+
+whiteBGLine :: [Pixel]
+whiteBGLine = [Pixel Background white | x <- [0..159]]
 
 toScreenByteString :: PPU -> ByteString
 toScreenByteString = BS.pack . concat . concat . view (ppuScreen . unScreen)

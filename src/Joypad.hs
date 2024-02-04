@@ -51,7 +51,7 @@ joypadWrite w j
   | not (testBitF 5 w) && not (testBitF 4 w) = error "tried to set joypad bit 4 and 5 at the same time"
   | not (testBitF 5 w) = j & joypadButtonSelect .~ True & joypadDirectionSelect .~ False
   | not (testBitF 4 w) = j & joypadButtonSelect .~ False & joypadDirectionSelect .~ True
-  | otherwise = error "joypad write with neither button nor direction select!"
+  | otherwise = j & joypadButtonSelect .~ False & joypadDirectionSelect .~ False
 
 requestJoypadInterrupt :: CPU -> CPU
 requestJoypadInterrupt cpu = cpu & cpuMCU . mcuInterruptFlag . bitwiseValue' 4 .~ True

@@ -7,7 +7,7 @@ module MCU
 where
 
 import APU (initAPU, apuLookup, apuWrite)
-import Cartridge (initCartridge)
+import Cartridge (initCartridge, cartridgeRamWrite)
 import Clock (clockLookup, clockWrite, initClock)
 import Control.Lens
 import Data.Bits (shiftL, bit)
@@ -62,7 +62,7 @@ inVRam :: Word16 -> Bool
 inVRam = inRange (0x8000, 0x9FFF)
 
 inCartridgeRam :: Word16 -> Bool
-inCartridgeRam = inRange (0xA000, 0x9FFF)
+inCartridgeRam = inRange (0xA000, 0xBFFF)
 
 inRam :: Word16 -> Bool
 inRam = inRange (0xC000, 0xDFFF)
@@ -123,7 +123,7 @@ addressLookup a
   | inRomBank00 a = fromMaybe 0xFF . view (mcuCartridge . cartridgeROM00 . to (M.lookup a))
   | inRomBankNN a = fromMaybe 0xFF . view (mcuCartridge . cartridgeROMNN . to (M.lookup a))
   | inVRam a = view (mcuPPU . to (vRamLookup a))
-  | inCartridgeRam a = undefined
+  | inCartridgeRam a = fromMaybe 0xFF . view (mcuCartridge . cartridgeRAM . to (M.lookup a))
   | inRam a = view (mcuRAM . to (ramLookup a))
   | inMirrorRam a = view (mcuRAM . to (ramLookup (a - 2000)))
   | inOAM a = view (mcuPPU . to (oamLookup a))
@@ -145,7 +145,7 @@ addressWrite a w
   | inRomBank00 a = id
   | inRomBankNN a = id
   | inVRam a = mcuPPU %~ vRamWrite a w
-  | inCartridgeRam a = undefined
+  | inCartridgeRam a = mcuCartridge %~ cartridgeRamWrite a w
   | inRam a = mcuRAM %~ ramWrite a w
   | inMirrorRam a = mcuRAM %~ ramWrite (a - 2000) w
   | inOAM a = bool id (transferDMA w) (dmaTransfer a) . (mcuPPU %~ oamWrite a w)

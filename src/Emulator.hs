@@ -28,7 +28,7 @@ initialWorld :: Cartridge -> CPU
 initialWorld c = initCpu & cpuMCU . mcuCartridge .~ c
 
 window :: Display
-window = InWindow "GAMEBOY" (windowHeight * 4, windowWidth * 4) (10, 10)
+window = InWindow "GAMEBOY" (windowWidth * 4, windowHeight * 4) (10, 10)
 
 background :: Color
 background = makeColorI 155 188 15 255

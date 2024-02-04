@@ -10,7 +10,7 @@ import Data.Bool (bool)
 initClock :: Clock
 initClock =
   Clock
-    { _clockDivider = 0xAB, -- increments at 16384Hz -> 41943404 cycles/s / 16384 Hz = every 256 cycles
+    { _clockDivider = 0xAB, -- increments at 16384Hz -> 4194304 cycles/s / 16384 Hz = every 256 cycles
       _clockTimer = 0x00, -- increments at clockFrequency specified in TimerControl, see below
       _clockTimerModulo = 0x00,
       _clockTimerControl = 0xF8,

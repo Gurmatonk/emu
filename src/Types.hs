@@ -63,7 +63,8 @@ data Joypad = Joypad
 data Cartridge = Cartridge
   { _cartridgeRawData :: [Word8],
     _cartridgeROM00 :: Map Address Word8,
-    _cartridgeROMNN :: Map Address Word8
+    _cartridgeROMNN :: Map Address Word8,
+    _cartridgeRAM :: Map Address Word8
   }
   deriving (Show)
 
@@ -124,6 +125,17 @@ data BGTileMapArea = BTMA9800To9BFF | BTMA9C00To9FFF
 data SpriteSize = Size8x8 | Size8x16
   deriving (Show, Eq)
 
+data SpriteInfo =
+  SpriteInfo
+    { _spriteInfoYPos :: Int,
+      _spriteInfoXPos :: Int,
+      _spriteInfoTileNr :: Word8,
+      _spriteInfoHidden :: Bool,
+      _spriteInfoYFlip :: Bool,
+      _spriteInfoXFlip :: Bool,
+      _spriteInfoPalette0 :: Bool
+    }
+
 data Mode = HBlank | VBlank | SearchingOAM | LCDTransfer
   deriving (Show, Eq)
 
@@ -132,7 +144,7 @@ data Colour = White | LightGray | DarkGray | Black
 
 data Pixel = Pixel
   { _pixelSource :: PixelSource,
-    _pixelColour :: RGBAColor
+    _pixelColor :: RGBAColor
   }
   deriving (Show)
 
@@ -192,6 +204,7 @@ makeLenses ''Cartridge
 makeLenses ''PPU
 makeLenses ''Clock
 makeLenses ''Pixel
+makeLenses ''SpriteInfo
 makeLenses ''Serial
 makeLenses ''APU
 makeLenses ''Screen
